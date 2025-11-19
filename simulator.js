@@ -67,6 +67,22 @@ function parseWebform() {
     submitButtonRules = null;
     attachmentRules = null;
 
+    // Load translations from webform JSON if available
+    if (webformData.formTranslations && webformData.formTranslations['en-us']) {
+        const formTrans = webformData.formTranslations['en-us'];
+
+        // Initialize translations if not already loaded
+        if (!translations) {
+            translations = { fields: {}, options: {}, requestTypes: {}, subjectTypes: {} };
+        }
+
+        // Merge form translations into our translations object
+        Object.assign(translations.fields, formTrans);
+        Object.assign(translations.options, formTrans);
+        Object.assign(translations.requestTypes, formTrans);
+        Object.assign(translations.subjectTypes, formTrans);
+    }
+
     // Parse uiFields for submit button and attachment
     if (webformData.uiFields) {
         webformData.uiFields.forEach(field => {
