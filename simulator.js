@@ -764,99 +764,9 @@ function evaluateWorkflowRule(workflow) {
 function exportToExcel() {
     const workbook = XLSX.utils.book_new();
 
-    // Sheet 1: Current Form State
-    const formStateData = [];
-    formStateData.push(['Field', 'Selected Value']);
-
-    Object.keys(currentSelections).forEach(fieldKey => {
-        const fieldLabel = getFieldLabel(fieldKey);
-        const valueLabel = getOptionLabel(currentSelections[fieldKey]);
-        formStateData.push([fieldLabel, valueLabel]);
-    });
-
-    const formStateSheet = XLSX.utils.aoa_to_sheet(formStateData);
-    XLSX.utils.book_append_sheet(workbook, formStateSheet, 'Current Selections');
-
-    // Sheet 2: Triggered Workflows
-    const workflowData = [];
-    workflowData.push(['Workflow Name', 'Status', 'Matched', 'Total Criteria', 'Match %', 'Deadline (days)', 'Workflow ID']);
-
-    workflowRules.forEach(workflow => {
-        const result = evaluateWorkflowRule(workflow);
-        if (result.matchedCount > 0) {
-            const params = Array.isArray(workflow.ruleActionParameters) ? workflow.ruleActionParameters : [];
-            const workflowId = params.find(p => p.field === 'WORKFLOWID')?.value || 'N/A';
-            const deadline = params.find(p => p.field === 'DEADLINE')?.value || 'N/A';
-            const matchPercentage = result.totalCriteria > 0 ? Math.round((result.matchedCount / result.totalCriteria) * 100) : 0;
-            const status = result.triggered ? 'WILL TRIGGER' : `PARTIAL (${result.matchedCount}/${result.totalCriteria})`;
-
-            workflowData.push([
-                workflow.ruleName || 'Unnamed Workflow',
-                status,
-                result.matchedCount,
-                result.totalCriteria,
-                matchPercentage + '%',
-                deadline,
-                workflowId
-            ]);
-        }
-    });
-
-    const workflowSheet = XLSX.utils.aoa_to_sheet(workflowData);
-    XLSX.utils.book_append_sheet(workbook, workflowSheet, 'Workflows');
-
-    // Sheet 3: Workflow Criteria Details
-    const criteriaData = [];
-    criteriaData.push(['Workflow Name', 'Criteria Status', 'Field', 'Expected Value(s)', 'Current Value']);
-
-    workflowRules.forEach(workflow => {
-        const result = evaluateWorkflowRule(workflow);
-        if (result.matchedCount > 0) {
-            const workflowName = workflow.ruleName || 'Unnamed Workflow';
-
-            // Matched criteria
-            result.reasons.forEach(reason => {
-                criteriaData.push([workflowName, 'MATCHED', reason, '', '']);
-            });
-
-            // Unmatched criteria
-            result.unmatchedReasons.forEach(reason => {
-                criteriaData.push([workflowName, 'UNMATCHED', reason, '', '']);
-            });
-        }
-    });
-
-    const criteriaSheet = XLSX.utils.aoa_to_sheet(criteriaData);
-    XLSX.utils.book_append_sheet(workbook, criteriaSheet, 'Workflow Criteria');
-
-    // Sheet 4: Form Actions
-    const actionsData = [];
-    actionsData.push(['Action Type', 'Status', 'Reason']);
-
-    if (submitButtonRules) {
-        const submitResult = evaluateUIField(submitButtonRules);
-        actionsData.push([
-            'Submit Button',
-            submitResult.disabled ? 'DISABLED' : 'ENABLED',
-            submitResult.disabled ? submitResult.message : 'Form can be submitted'
-        ]);
-    }
-
-    if (attachmentRules) {
-        const attachmentResult = evaluateUIField(attachmentRules);
-        actionsData.push([
-            'Attachment Field',
-            attachmentResult.shown ? 'VISIBLE' : 'HIDDEN',
-            attachmentResult.shown ? attachmentResult.message : 'No conditions met to show attachments'
-        ]);
-    }
-
-    const actionsSheet = XLSX.utils.aoa_to_sheet(actionsData);
-    XLSX.utils.book_append_sheet(workbook, actionsSheet, 'Form Actions');
-
-    // Sheet 5: All Fields Configuration
+    // Sheet 1: All Fields
     const allFieldsData = [];
-    allFieldsData.push(['Field Key', 'Label', 'Type', 'Required', 'Status', 'Has Visibility Rule', 'Currently Visible']);
+    allFieldsData.push(['Field Key', 'Label', 'Type', 'Required', 'Status', 'Has Visibility Rule', 'Description']);
 
     allFields.forEach(field => {
         allFieldsData.push([
@@ -866,16 +776,301 @@ function exportToExcel() {
             field.required ? 'Yes' : 'No',
             field.status === 10 ? 'Active' : 'Inactive',
             field.hasVisibilityRule ? 'Yes' : 'No',
-            visibleFields.has(field.key) ? 'Yes' : 'No'
+            field.description || ''
         ]);
     });
 
     const allFieldsSheet = XLSX.utils.aoa_to_sheet(allFieldsData);
     XLSX.utils.book_append_sheet(workbook, allFieldsSheet, 'All Fields');
 
-    // Generate filename with timestamp
+    // Sheet 2: Field Options (for multiselect/button fields)
+    const optionsData = [];
+    optionsData.push(['Field Key', 'Field Label', 'Option Key', 'Option Value']);
+
+    allFields.forEach(field => {
+        if (field.options && field.options.length > 0) {
+            field.options.forEach(option => {
+                optionsData.push([
+                    field.key,
+                    field.label,
+                    option.key,
+                    option.value
+                ]);
+            });
+        }
+    });
+
+    const optionsSheet = XLSX.utils.aoa_to_sheet(optionsData);
+    XLSX.utils.book_append_sheet(workbook, optionsSheet, 'Field Options');
+
+    // Sheet 3: Visibility Rules
+    const visibilityData = [];
+    visibilityData.push(['What Shows', 'Rule Name', 'When This Field', 'Operator', 'Equals This Value', 'Action Type', 'Configured Options']);
+
+    allFields.forEach(field => {
+        if (field.hasVisibilityRule && field.visibilityRules && field.visibilityRules.rules) {
+            field.visibilityRules.rules.forEach(rule => {
+                const ruleName = rule.ruleName || 'Unnamed';
+                const ruleConditions = rule.ruleConditions || [];
+                const action = rule.actions?.[0];
+                const actionType = action?.action || 'SHOW_QUESTION';
+
+                // Get configured options if present
+                let configuredOptions = '';
+                if (action?.selectedOptions && action.selectedOptions.length > 0) {
+                    const optionLabels = action.selectedOptions.map(opt => getOptionLabel(opt));
+                    configuredOptions = optionLabels.join(', ');
+                }
+
+                ruleConditions.forEach(condition => {
+                    const conditionField = condition.selectedField;
+                    const subConditions = condition.ruleSubConditions || [];
+
+                    subConditions.forEach(sub => {
+                        const expectedValue = getOptionLabel(sub.valueToCompareWith);
+
+                        visibilityData.push([
+                            field.label,
+                            ruleName,
+                            getFieldLabel(conditionField),
+                            sub.comparisonOperator,
+                            expectedValue,
+                            actionType,
+                            configuredOptions
+                        ]);
+                    });
+                });
+            });
+        }
+    });
+
+    const visibilitySheet = XLSX.utils.aoa_to_sheet(visibilityData);
+    XLSX.utils.book_append_sheet(workbook, visibilitySheet, 'Visibility Rules');
+
+    // Sheet 4: All Workflows
+    const workflowData = [];
+    workflowData.push(['Workflow Name', 'Workflow ID', 'Deadline (days)', 'Criteria Count']);
+
+    workflowRules.forEach(workflow => {
+        const params = Array.isArray(workflow.ruleActionParameters) ? workflow.ruleActionParameters : [];
+        const workflowId = params.find(p => p.field === 'WORKFLOWID')?.value || 'N/A';
+        const deadline = params.find(p => p.field === 'DEADLINE')?.value || 'N/A';
+        const criteriaCount = workflow.ruleCriteria?.length || 0;
+
+        workflowData.push([
+            workflow.ruleName || 'Unnamed Workflow',
+            workflowId,
+            deadline,
+            criteriaCount
+        ]);
+    });
+
+    const workflowSheet = XLSX.utils.aoa_to_sheet(workflowData);
+    XLSX.utils.book_append_sheet(workbook, workflowSheet, 'All Workflows');
+
+    // Sheet 5: Workflow Criteria (one row per workflow)
+    const criteriaData = [];
+    const maxCriteria = Math.max(...workflowRules.map(wf => (wf.ruleCriteria || []).length), 0);
+
+    // Build dynamic header
+    const header = ['Workflow Name', 'Workflow ID', 'Deadline (days)', 'Total Steps'];
+    for (let i = 1; i <= maxCriteria; i++) {
+        header.push(`Step ${i} - Field`, `Step ${i} - Values`);
+    }
+    criteriaData.push(header);
+
+    workflowRules.forEach(workflow => {
+        const workflowName = workflow.ruleName || 'Unnamed Workflow';
+        const params = Array.isArray(workflow.ruleActionParameters) ? workflow.ruleActionParameters : [];
+        const workflowId = params.find(p => p.field === 'WORKFLOWID')?.value || 'N/A';
+        const deadline = params.find(p => p.field === 'DEADLINE')?.value || 'N/A';
+        const criteria = workflow.ruleCriteria || [];
+
+        const row = [
+            workflowName,
+            workflowId,
+            deadline,
+            criteria.length
+        ];
+
+        // Add each criterion as field/value pair
+        criteria.forEach(criterion => {
+            const fieldLabel = getFieldLabel(criterion.field);
+            const values = criterion.values || [];
+            const valueLabels = values.map(v => getOptionLabel(v)).join(' OR ');
+
+            row.push(fieldLabel);
+            row.push(valueLabels);
+        });
+
+        // Fill remaining columns with empty strings
+        while (row.length < header.length) {
+            row.push('');
+        }
+
+        criteriaData.push(row);
+    });
+
+    const criteriaSheet = XLSX.utils.aoa_to_sheet(criteriaData);
+    XLSX.utils.book_append_sheet(workbook, criteriaSheet, 'Workflow Criteria');
+
+    // Sheet 5b: Workflow Trigger Walkthrough
+    const walkthroughData = [];
+    walkthroughData.push(['Workflow Name', 'Step-by-Step Guide']);
+
+    workflowRules.forEach(workflow => {
+        const workflowName = workflow.ruleName || 'Unnamed Workflow';
+        const params = Array.isArray(workflow.ruleActionParameters) ? workflow.ruleActionParameters : [];
+        const workflowId = params.find(p => p.field === 'WORKFLOWID')?.value || 'N/A';
+        const deadline = params.find(p => p.field === 'DEADLINE')?.value || 'N/A';
+        const criteria = workflow.ruleCriteria || [];
+
+        let instructions = `To trigger "${workflowName}" (Deadline: ${deadline} days):\n\n`;
+
+        if (criteria.length === 0) {
+            instructions += 'No criteria defined (workflow may trigger by default)';
+        } else {
+            instructions += `You must complete ALL ${criteria.length} step(s) below:\n\n`;
+
+            criteria.forEach((criterion, index) => {
+                const fieldLabel = getFieldLabel(criterion.field);
+                const values = criterion.values || [];
+                const valueLabels = values.map(v => getOptionLabel(v));
+
+                instructions += `STEP ${index + 1}: "${fieldLabel}"\n`;
+                if (valueLabels.length === 1) {
+                    instructions += `   → Select: ${valueLabels[0]}\n`;
+                } else {
+                    instructions += `   → Select ANY of: ${valueLabels.join(' OR ')}\n`;
+                }
+                instructions += '\n';
+            });
+
+            instructions += 'All steps must be completed to trigger this workflow.';
+        }
+
+        walkthroughData.push([
+            workflowName,
+            instructions
+        ]);
+    });
+
+    const walkthroughSheet = XLSX.utils.aoa_to_sheet(walkthroughData);
+    XLSX.utils.book_append_sheet(workbook, walkthroughSheet, 'Workflow Walkthrough');
+
+    // Sheet 6: Submit Button Rules
+    const submitData = [];
+    submitData.push(['Rule Name', 'Condition Field', 'Operator', 'Expected Value', 'Action', 'Error Message']);
+
+    if (submitButtonRules && submitButtonRules.visibilityRules) {
+        const rules = submitButtonRules.visibilityRules.rules || [];
+        rules.forEach(rule => {
+            const ruleName = rule.ruleName || 'Unnamed';
+            const ruleConditions = rule.ruleConditions || [];
+
+            ruleConditions.forEach(condition => {
+                const conditionField = condition.selectedField;
+                const subConditions = condition.ruleSubConditions || [];
+
+                subConditions.forEach(sub => {
+                    const expectedValue = getOptionLabel(sub.valueToCompareWith);
+                    const action = rule.actions?.[0]?.action || '';
+                    const errorMessage = rule.actions?.[0]?.errorMessage || '';
+
+                    submitData.push([
+                        ruleName,
+                        getFieldLabel(conditionField),
+                        sub.comparisonOperator,
+                        expectedValue,
+                        action,
+                        errorMessage
+                    ]);
+                });
+            });
+        });
+    }
+
+    const submitSheet = XLSX.utils.aoa_to_sheet(submitData);
+    XLSX.utils.book_append_sheet(workbook, submitSheet, 'Submit Button Rules');
+
+    // Sheet 7: Attachment Rules
+    const attachmentData = [];
+    attachmentData.push(['Rule Name', 'Condition Field', 'Operator', 'Expected Value', 'Action']);
+
+    if (attachmentRules && attachmentRules.visibilityRules) {
+        const rules = attachmentRules.visibilityRules.rules || [];
+        rules.forEach(rule => {
+            const ruleName = rule.ruleName || 'Unnamed';
+            const ruleConditions = rule.ruleConditions || [];
+
+            ruleConditions.forEach(condition => {
+                const conditionField = condition.selectedField;
+                const subConditions = condition.ruleSubConditions || [];
+
+                subConditions.forEach(sub => {
+                    const expectedValue = getOptionLabel(sub.valueToCompareWith);
+                    const action = rule.actions?.[0]?.action || '';
+
+                    attachmentData.push([
+                        ruleName,
+                        getFieldLabel(conditionField),
+                        sub.comparisonOperator,
+                        expectedValue,
+                        action
+                    ]);
+                });
+            });
+        });
+    }
+
+    const attachmentSheet = XLSX.utils.aoa_to_sheet(attachmentData);
+    XLSX.utils.book_append_sheet(workbook, attachmentSheet, 'Attachment Rules');
+
+    // Sheet 8: Request Types
+    const requestTypesData = [];
+    requestTypesData.push(['Field Name', 'ID', 'Order', 'Status', 'Selected']);
+
+    if (webformData.webFormDto && webformData.webFormDto.requestTypes) {
+        webformData.webFormDto.requestTypes.forEach(rt => {
+            const label = translations?.requestTypes?.[rt.fieldName] || rt.fieldName;
+            requestTypesData.push([
+                label,
+                rt.id,
+                rt.order,
+                rt.status === 10 ? 'Active' : 'Inactive',
+                rt.isSelected ? 'Yes' : 'No'
+            ]);
+        });
+    }
+
+    const requestTypesSheet = XLSX.utils.aoa_to_sheet(requestTypesData);
+    XLSX.utils.book_append_sheet(workbook, requestTypesSheet, 'Request Types');
+
+    // Sheet 9: Subject Types
+    const subjectTypesData = [];
+    subjectTypesData.push(['Field Name', 'ID', 'Order', 'Status', 'Selected']);
+
+    if (webformData.webFormDto && webformData.webFormDto.subjectTypes) {
+        webformData.webFormDto.subjectTypes.forEach(st => {
+            const label = translations?.subjectTypes?.[st.fieldName] || st.fieldName;
+            subjectTypesData.push([
+                label,
+                st.id,
+                st.order,
+                st.status === 10 ? 'Active' : 'Inactive',
+                st.isSelected ? 'Yes' : 'No'
+            ]);
+        });
+    }
+
+    const subjectTypesSheet = XLSX.utils.aoa_to_sheet(subjectTypesData);
+    XLSX.utils.book_append_sheet(workbook, subjectTypesSheet, 'Subject Types');
+
+    // Generate filename with template name and timestamp
+    const templateName = webformData.webFormDto?.templateName || 'webform';
+    const cleanTemplateName = templateName.replace(/[^a-zA-Z0-9]/g, '-');
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
-    const filename = `webform-analysis-${timestamp}.xlsx`;
+    const filename = `${cleanTemplateName}-${timestamp}.xlsx`;
 
     // Export
     XLSX.writeFile(workbook, filename);

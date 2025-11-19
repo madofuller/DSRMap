@@ -1,6 +1,7 @@
-# JSON data files
+# JSON data files (exclude user data)
 *.json
 !package.json
+!vercel.json
 
 # Output files
 *.xlsx
@@ -24,3 +25,13 @@ npm-debug.log*
 *.backup
 *.bak
 *~
+
+# Vercel
+.vercel
+
+# Development files
+app.js
+wizard.js
+index2.html
+analyze_fields.py
+webform_analysis.txt
