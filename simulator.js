@@ -27,9 +27,14 @@ async function loadTranslations() {
     try {
         // Add cache-busting parameter to force fresh load
         const response = await fetch(`field_translations.json?t=${Date.now()}`);
-        translations = await response.json();
+        if (response.ok && response.headers.get('content-type')?.includes('application/json')) {
+            translations = await response.json();
+        } else {
+            // No translation file available, use empty translations
+            translations = { fields: {}, options: {}, requestTypes: {}, subjectTypes: {} };
+        }
     } catch (error) {
-        console.warn('Could not load translations', error);
+        // Translation file not found or error loading, use empty translations
         translations = { fields: {}, options: {}, requestTypes: {}, subjectTypes: {} };
     }
 }
