@@ -248,9 +248,17 @@ function parseWebform() {
     // USE AGNOSTIC DETECTION - Find fields by pattern recognition
     const foundFields = findFieldsArray(webformData);
     foundFields.forEach(field => {
+        // Get label from translations using the description key, or fall back to fieldKey
+        let label = field.fieldKey;
+        if (field.description && translations && translations.fields && translations.fields[field.description]) {
+            label = translations.fields[field.description];
+        } else if (translations && translations.fields && translations.fields[field.fieldKey]) {
+            label = translations.fields[field.fieldKey];
+        }
+
         allFields.push({
             key: field.fieldKey,
-            label: getFieldLabel(field.fieldKey),
+            label: label,
             type: field.inputType,
             description: field.description,
             required: field.isRequired,
@@ -1208,9 +1216,18 @@ function exportToExcel() {
 }
 
 function getFieldLabel(fieldKey) {
+    // First try to find the field in allFields to get its description key
+    const field = allFields.find(f => f.key === fieldKey);
+
+    if (field && field.description && translations && translations.fields && translations.fields[field.description]) {
+        return translations.fields[field.description];
+    }
+
+    // Fall back to direct fieldKey lookup
     if (translations && translations.fields && translations.fields[fieldKey]) {
         return translations.fields[fieldKey];
     }
+
     return fieldKey;
 }
 
