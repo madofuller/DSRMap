@@ -48,7 +48,18 @@ function processFile(file) {
     const reader = new FileReader();
     reader.onload = (e) => {
         try {
-            webformData = JSON.parse(e.target.result);
+            const jsonData = JSON.parse(e.target.result);
+
+            // Normalize webform data - handle both old and new formats
+            // Old format: data wrapped in "webformData"
+            // New format: data at root level
+            if (jsonData.webformData) {
+                webformData = jsonData.webformData;
+            } else {
+                // New format - data is already at root level
+                webformData = jsonData;
+            }
+
             parseWebform();
             startSimulator();
         } catch (error) {
