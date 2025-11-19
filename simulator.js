@@ -12,6 +12,111 @@ let uiFields = [];
 let submitButtonRules = null;
 let attachmentRules = null;
 
+//=============================================================================
+// AGNOSTIC WEBFORM DETECTION FUNCTIONS
+// These find components by their DATA SHAPE, not hardcoded paths
+//=============================================================================
+
+function recursiveFind(obj, predicate, path = 'root', maxDepth = 10, currentDepth = 0) {
+    const results = [];
+    if (currentDepth > maxDepth || obj === null || obj === undefined) return results;
+
+    if (predicate(obj, path)) {
+        results.push({ data: obj, path: path });
+    }
+
+    if (typeof obj === 'object' && obj !== null) {
+        if (Array.isArray(obj)) {
+            obj.forEach((item, index) => {
+                results.push(...recursiveFind(item, predicate, `${path}[${index}]`, maxDepth, currentDepth + 1));
+            });
+        } else {
+            Object.keys(obj).forEach(key => {
+                results.push(...recursiveFind(obj[key], predicate, `${path}.${key}`, maxDepth, currentDepth + 1));
+            });
+        }
+    }
+
+    return results;
+}
+
+function findFieldsArray(jsonData) {
+    const fieldArrays = recursiveFind(jsonData, (obj, path) => {
+        if (!Array.isArray(obj) || obj.length === 0) return false;
+
+        const hasFieldCharacteristics = obj.filter(item => {
+            return item && typeof item === 'object' &&
+                   typeof item.fieldKey === 'string' &&
+                   typeof item.inputType === 'string' &&
+                   typeof item.isRequired === 'boolean';
+        });
+
+        return hasFieldCharacteristics.length / obj.length >= 0.8;
+    });
+
+    return fieldArrays.length > 0 ? fieldArrays[0].data : [];
+}
+
+function findWorkflowRulesArray(jsonData) {
+    const ruleArrays = recursiveFind(jsonData, (obj, path) => {
+        if (!Array.isArray(obj) || obj.length === 0) return false;
+
+        const hasRuleCharacteristics = obj.filter(item => {
+            return item && typeof item === 'object' &&
+                   typeof item.ruleName === 'string' &&
+                   item.criteriaInformation !== undefined;
+        });
+
+        return hasRuleCharacteristics.length / obj.length >= 0.8;
+    });
+
+    return ruleArrays.length > 0 ? ruleArrays[0].data : [];
+}
+
+function findTranslationsObject(jsonData) {
+    const translationObjs = recursiveFind(jsonData, (obj, path) => {
+        if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return false;
+
+        const keys = Object.keys(obj);
+        if (keys.length === 0) return false;
+
+        const languageCodePattern = /^[a-z]{2}(-[a-z]{2})?$/i;
+        const matchingKeys = keys.filter(key => languageCodePattern.test(key));
+
+        return matchingKeys.length >= 1 && matchingKeys.length / keys.length >= 0.5;
+    });
+
+    return translationObjs.length > 0 ? translationObjs[0].data : null;
+}
+
+function findUIFieldsArray(jsonData) {
+    const uiFieldArrays = recursiveFind(jsonData, (obj, path) => {
+        if (!Array.isArray(obj) || obj.length === 0) return false;
+
+        const hasDSARPattern = obj.filter(item => {
+            return item && typeof item === 'object' &&
+                   typeof item.fieldKey === 'string' &&
+                   item.fieldKey.startsWith('DSAR.Webform.');
+        });
+
+        return hasDSARPattern.length > 0;
+    });
+
+    return uiFieldArrays.length > 0 ? uiFieldArrays[0].data : [];
+}
+
+function findMetadata(jsonData) {
+    const metadataObjs = recursiveFind(jsonData, (obj, path) => {
+        if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return false;
+
+        return typeof obj.templateName === 'string' ||
+               (obj.languageList && Array.isArray(obj.languageList)) ||
+               typeof obj.defaultLanguage === 'string';
+    });
+
+    return metadataObjs.length > 0 ? metadataObjs[0].data : null;
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
@@ -48,18 +153,7 @@ function processFile(file) {
     const reader = new FileReader();
     reader.onload = (e) => {
         try {
-            const jsonData = JSON.parse(e.target.result);
-
-            // Normalize webform data - handle both old and new formats
-            // Old format: data wrapped in "webformData"
-            // New format: data at root level
-            if (jsonData.webformData) {
-                webformData = jsonData.webformData;
-            } else {
-                // New format - data is already at root level
-                webformData = jsonData;
-            }
-
+            webformData = JSON.parse(e.target.result);
             parseWebform();
             startSimulator();
         } catch (error) {
@@ -78,9 +172,12 @@ function parseWebform() {
     submitButtonRules = null;
     attachmentRules = null;
 
-    // Load translations from webform JSON if available
-    if (webformData.formTranslations && webformData.formTranslations['en-us']) {
-        const formTrans = webformData.formTranslations['en-us'];
+    console.log('🔍 Using agnostic pattern detection to find webform components...');
+
+    // USE AGNOSTIC DETECTION - Find translations by pattern recognition
+    const translationsObj = findTranslationsObject(webformData);
+    if (translationsObj && translationsObj['en-us']) {
+        const formTrans = translationsObj['en-us'];
 
         // Initialize translations if not already loaded
         if (!translations) {
@@ -92,36 +189,41 @@ function parseWebform() {
         Object.assign(translations.options, formTrans);
         Object.assign(translations.requestTypes, formTrans);
         Object.assign(translations.subjectTypes, formTrans);
+        console.log('✅ Found translations:', Object.keys(translationsObj).length, 'languages');
+    } else {
+        console.log('⚠️ No translations found');
     }
 
-    // Parse uiFields for submit button and attachment
-    if (webformData.uiFields) {
-        webformData.uiFields.forEach(field => {
-            if (field.fieldKey === 'DSAR.Webform.VisibilityRule.SubmitButton') {
-                submitButtonRules = field;
-            } else if (field.fieldKey === 'DSAR.Webform.VisibilityRule.Attachment') {
-                attachmentRules = field;
-            }
-        });
-    }
+    // USE AGNOSTIC DETECTION - Find UI fields by pattern recognition
+    const foundUIFields = findUIFieldsArray(webformData);
+    foundUIFields.forEach(field => {
+        if (field.fieldKey === 'DSAR.Webform.VisibilityRule.SubmitButton') {
+            submitButtonRules = field;
+        } else if (field.fieldKey === 'DSAR.Webform.VisibilityRule.Attachment') {
+            attachmentRules = field;
+        }
+    });
+    console.log('✅ Found UI fields:', foundUIFields.length);
 
-    // Create GUID to key mappings for requestTypes and subjectTypes
+    // Create GUID to key mappings - find metadata for requestTypes and subjectTypes
     const guidToKeyMap = {};
+    const metadata = findMetadata(webformData);
 
-    if (webformData.webFormDto) {
+    if (metadata) {
         // Map requestTypes GUIDs to keys
-        if (webformData.webFormDto.requestTypes) {
-            webformData.webFormDto.requestTypes.forEach(rt => {
+        if (metadata.requestTypes) {
+            metadata.requestTypes.forEach(rt => {
                 guidToKeyMap[rt.id] = rt.fieldName;
             });
         }
 
         // Map subjectTypes GUIDs to keys
-        if (webformData.webFormDto.subjectTypes) {
-            webformData.webFormDto.subjectTypes.forEach(st => {
+        if (metadata.subjectTypes) {
+            metadata.subjectTypes.forEach(st => {
                 guidToKeyMap[st.id] = st.fieldName;
             });
         }
+        console.log('✅ Found metadata with', metadata.requestTypes?.length || 0, 'request types and', metadata.subjectTypes?.length || 0, 'subject types');
     }
 
     // Parse workflow settings
@@ -143,29 +245,28 @@ function parseWebform() {
         }
     }
 
-    // Parse fields
-    if (webformData.fields) {
-        webformData.fields.forEach(field => {
-            allFields.push({
-                key: field.fieldKey,
-                label: getFieldLabel(field.fieldKey),
-                type: field.inputType,
-                description: field.description,
-                isRequired: field.isRequired,
-                hasVisibilityRule: field.hasVisibilityRule,
-                visibilityRules: field.visibilityRules,
-                options: field.options || [],
-                isMasked: field.isMasked,
-                status: field.status,
-                isSelected: field.isSelected
-            });
+    // USE AGNOSTIC DETECTION - Find fields by pattern recognition
+    const foundFields = findFieldsArray(webformData);
+    foundFields.forEach(field => {
+        allFields.push({
+            key: field.fieldKey,
+            label: getFieldLabel(field.fieldKey),
+            type: field.inputType,
+            description: field.description,
+            required: field.isRequired,
+            hasVisibilityRule: field.hasVisibilityRule,
+            visibilityRules: field.visibilityRules,
+            options: field.options || [],
+            isMasked: field.isMasked,
+            status: field.status,
+            isSelected: field.isSelected
         });
-    }
+    });
+    console.log('✅ Found fields:', allFields.length);
 
-    // Parse workflow rules - convert criteriaInformation to ruleCriteria format
-    if (webformData.rules) {
-        if (webformData.rules.REQUEST_CREATION) {
-            workflowRules = webformData.rules.REQUEST_CREATION.map(rule => {
+    // USE AGNOSTIC DETECTION - Find workflow rules by pattern recognition
+    const foundWorkflows = findWorkflowRulesArray(webformData);
+    workflowRules = foundWorkflows.map(rule => {
                 // Parse action parameters
                 let ruleActionParameters = [];
                 try {
@@ -209,19 +310,17 @@ function parseWebform() {
                     });
                 });
 
-                return {
-                    ...rule,
-                    type: 'REQUEST_CREATION',
-                    ruleActionParameters: ruleActionParameters,
-                    ruleCriteria: ruleCriteria
-                };
-            });
-        }
-    }
+        return {
+            ...rule,
+            type: 'REQUEST_CREATION',
+            ruleActionParameters: ruleActionParameters,
+            ruleCriteria: ruleCriteria
+        };
+    });
+    console.log('✅ Found workflows:', workflowRules.length);
 
-    console.log('Parsed:', allFields.length, 'fields,', workflowRules.length, 'workflows');
+    console.log('📊 Summary:', allFields.length, 'fields,', workflowRules.length, 'workflows');
     console.log('Workflow Settings:', workflowSettings);
-    console.log('Note: No default workflow - all workflows are rule-based');
 
     // Log workflow criteria for debugging
     workflowRules.forEach(wf => {
