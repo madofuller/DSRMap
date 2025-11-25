@@ -2053,6 +2053,9 @@ function getFieldLabel(fieldKey) {
 }
 
 function getOptionLabel(optionKey) {
+    if (!optionKey) return optionKey;
+    
+    // Check translations first
     if (translations && translations.options && translations.options[optionKey]) {
         return translations.options[optionKey];
     }
@@ -2062,6 +2065,34 @@ function getOptionLabel(optionKey) {
     if (translations && translations.subjectTypes && translations.subjectTypes[optionKey]) {
         return translations.subjectTypes[optionKey];
     }
+    
+    // For country codes, try to find the country name from the country field options
+    // Country codes are typically 2-letter ISO codes (like "US", "BR", "DZ")
+    if (optionKey.length === 2 && /^[A-Z]{2}$/i.test(optionKey)) {
+        const countryField = allFields.find(f => 
+            f.key && (f.key.toLowerCase().includes('country') || 
+                     (f.label && f.label.toLowerCase().includes('country')))
+        );
+        
+        if (countryField && countryField.options) {
+            const countryOption = countryField.options.find(opt => 
+                opt.key === optionKey || opt.key === optionKey.toUpperCase() || opt.key === optionKey.toLowerCase()
+            );
+            if (countryOption && countryOption.value) {
+                return countryOption.value;
+            }
+        }
+        
+        // Fallback: Try the comprehensive country list
+        const worldCountries = getWorldCountriesOptions();
+        const countryOption = worldCountries.find(opt => 
+            opt.key === optionKey || opt.key === optionKey.toUpperCase() || opt.key === optionKey.toLowerCase()
+        );
+        if (countryOption && countryOption.value) {
+            return countryOption.value;
+        }
+    }
+    
     return optionKey;
 }
 
