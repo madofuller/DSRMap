@@ -1510,12 +1510,20 @@ function evaluateWorkflowRule(workflow) {
 
 // Gap Detection System: Finds combinations of WHO+WHAT that don't trigger workflows
 function detectWorkflowGaps() {
+    console.log('🔍 Gap Detection starting...');
+    console.log('webformData:', !!webformData);
+    console.log('allFields:', allFields.length, 'fields loaded');
+    console.log('workflowRules:', workflowRules.length, 'workflows loaded');
+
     // Extract request types and subject types (WHO + WHAT)
     const requestTypes = (webformData.webFormDto?.requestTypes || [])
         .filter(rt => rt.isSelected !== false && rt.status !== 20); // Only active ones
 
     const subjectTypes = (webformData.webFormDto?.subjectTypes || [])
         .filter(st => st.isSelected !== false && st.status !== 20); // Only active ones
+
+    console.log('Found', requestTypes.length, 'request types:', requestTypes.map(rt => rt.fieldName));
+    console.log('Found', subjectTypes.length, 'subject types:', subjectTypes.map(st => st.fieldName));
 
     // Find the field keys for requestType and subjectType in allFields
     const requestTypeField = allFields.find(f =>
@@ -1527,6 +1535,10 @@ function detectWorkflowGaps() {
 
     if (!requestTypeField || !subjectTypeField) {
         console.warn('Gap detection: Could not find requestType or subjectType fields');
+        console.log('Available fields:', allFields.map(f => f.key).join(', '));
+        console.log('Subject types:', subjectTypes.map(st => st.fieldName).join(', '));
+        console.log('Request types:', requestTypes.map(rt => rt.fieldName).join(', '));
+        alert(`⚠️ Gap detection error:\n\nCould not find subject type or request type fields.\n\nAvailable fields: ${allFields.map(f => f.key).slice(0, 10).join(', ')}...`);
         return {
             gaps: [],
             total: 0,
@@ -1610,7 +1622,9 @@ function detectWorkflowGaps() {
 
 // Export gap analysis results
 function exportGapAnalysis() {
+    console.log('📊 exportGapAnalysis() called');
     const gapAnalysis = detectWorkflowGaps();
+    console.log('Gap analysis results:', gapAnalysis);
 
     if (!gapAnalysis.gaps || gapAnalysis.gaps.length === 0) {
         alert(`✅ No workflow gaps found!\n\nAll ${gapAnalysis.total} WHO+WHAT combinations have assigned workflows.\nCoverage: ${gapAnalysis.coverage_percentage}%`);
