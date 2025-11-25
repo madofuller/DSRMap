@@ -1711,107 +1711,77 @@ function buildSmartDiagramHTML(coverageData) {
     const timestamp = new Date().toLocaleString();
     const templateName = webformData.webFormDto?.templateName || 'DSAR Form';
 
-    const html = `<!DOCTYPE html>
-<html><head><title>Smart Coverage Analysis - ${templateName}</title><style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Segoe UI', Tahoma, Geneva, sans-serif; background: #f5f7fa; padding: 2rem; color: #2c3e50; }
-.container { max-width: 1400px; margin: 0 auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-.header { margin-bottom: 2rem; border-bottom: 3px solid #9b59b6; padding-bottom: 1rem; }
-.header h1 { font-size: 2rem; color: #2c3e50; margin-bottom: 0.5rem; }
-.header p { color: #7f8c8d; font-size: 0.9rem; }
-.method-tag { background: #9b59b6; color: white; padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.8rem; margin-left: 1rem; }
-.matrix-wrapper { overflow-x: auto; margin-bottom: 2rem; }
-table { width: 100%; border-collapse: collapse; background: white; }
-th, td { padding: 0.8rem; text-align: center; border: 2px solid #ecf0f1; font-size: 0.9rem; }
-th { background: #34495e; color: white; font-weight: 600; }
-.row-header { text-align: left; font-weight: 600; background: #f8f9fa; color: #2c3e50; }
-.cell-covered { background: #d5f4e6; border-left: 4px solid #27ae60; }
-.cell-covered::before { content: '✅'; font-weight: bold; margin-right: 4px; }
-.cell-gap { background: #fadbd8; border-left: 4px solid #e74c3c; }
-.cell-gap::before { content: '❌'; font-weight: bold; margin-right: 4px; }
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
-.stat-card { background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #9b59b6; }
-.stat-label { color: #7f8c8d; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; }
-.stat-value { font-size: 2rem; font-weight: bold; color: #2c3e50; margin-top: 0.5rem; }
-.dimension-info { background: #ecf0f1; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; }
-.dimension-title { font-weight: 600; color: #2c3e50; margin-bottom: 0.5rem; }
-.dimension-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; }
-.dimension-item { background: white; padding: 0.8rem; border-radius: 6px; border-left: 3px solid #9b59b6; font-size: 0.9rem; }
-.print-button { background: #9b59b6; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-size: 1rem; margin-bottom: 1rem; }
-@media print { body { background: white; } .print-button { display: none; } }
-</style></head><body><div class="container">
-<div class="header">
-  <h1>📊 Smart Coverage Analysis <span class="method-tag">Workflow-Driven</span></h1>
-  <p><strong>Form:</strong> ${templateName}</p>
-  <p><strong>Generated:</strong> ${timestamp}</p>
-  <p><strong>Analysis Method:</strong> Analyzed workflow rules to identify primary decision dimensions</p>
-</div>
+    // Build header columns
+    const headerCols = dim2.values.map(val => '<th>' + (getOptionLabel(val) || val) + '</th>').join('');
 
-<button class="print-button" onclick="window.print()">🖨️ Print / Save as PDF</button>
+    // Build table rows
+    const tableRows = matrix.map(row => {
+        const cells = row.cells.map(cell => {
+            const cellClass = cell.covered ? 'cell-covered' : 'cell-gap';
+            const emoji = cell.covered ? '✅' : '❌';
+            const workflow = cell.workflows.length > 0 ? '<div style="font-size: 0.75rem; margin-top: 4px;">' + cell.workflows.slice(0, 1).join(', ') + '</div>' : '';
+            return '<td class="' + cellClass + '"><strong>' + emoji + ' ' + cell.workflowCount + '</strong><br><small>' + (cell.workflowCount === 1 ? 'workflow' : 'workflows') + '</small>' + workflow + '</td>';
+        }).join('');
+        return '<tr><td class="row-header">' + row.label + '</td>' + cells + '</tr>';
+    }).join('');
 
-<div class="stats">
-  <div class="stat-card">
-    <div class="stat-label">Total Combinations</div>
-    <div class="stat-value">${stats.total}</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Covered</div>
-    <div class="stat-value" style="color: #27ae60;">${stats.covered}</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Gaps</div>
-    <div class="stat-value" style="color: #e74c3c;">${stats.gaps}</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Coverage</div>
-    <div class="stat-value" style="color: #9b59b6;">${stats.coverage}%</div>
-  </div>
-</div>
-
-<div class="dimension-info">
-  <div class="dimension-title">📈 Analysis Dimensions (derived from workflow rules)</div>
-  <p style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 1rem;">These dimensions were automatically identified as the most important for workflow routing:</p>
-  <div class="dimension-list">
-    <div class="dimension-item"><strong>Primary:</strong> ${dim1.label || dim1.field}<br><small>${dim1.workflows.length} workflows use this</small></div>
-    <div class="dimension-item"><strong>Secondary:</strong> ${dim2.label || dim2.field}<br><small>${dim2.workflows.length} workflows use this</small></div>
-  </div>
-</div>
-
-<div class="matrix-wrapper">
-  <table>
-    <thead>
-      <tr>
-        <th style="text-align: left;">${dim1.label || dim1.field} / ${dim2.label || dim2.field} →</th>
-        ${dim2.values.map(val => \`<th>\${getOptionLabel(val) || val}</th>\`).join('')}
-      </tr>
-    </thead>
-    <tbody>
-      ${matrix.map(row => \`
-        <tr>
-          <td class="row-header">\${row.label}</td>
-          \${row.cells.map(cell => \`
-            <td class="\${cell.covered ? 'cell-covered' : 'cell-gap'}">
-              <strong>\${cell.workflowCount}</strong><br>
-              <small>\${cell.workflowCount === 1 ? 'workflow' : 'workflows'}</small>
-              \${cell.workflows.length > 0 ? \`<div style="font-size: 0.75rem; margin-top: 4px;">\${cell.workflows.slice(0, 1).join(', ')}</div>\` : ''}
-            </td>
-          \`).join('')}
-        </tr>
-      \`).join('')}
-    </tbody>
-  </table>
-</div>
-
-<div style="margin-top: 3rem; padding: 1.5rem; background: #f8f9fa; border-left: 4px solid #9b59b6; border-radius: 8px;">
-  <h3 style="color: #2c3e50; margin-bottom: 1rem;">💡 What This Shows</h3>
-  <ul style="margin-left: 1.5rem; line-height: 1.8; color: #555;">
-    <li><strong>Green cells (✅):</strong> Workflow exists to handle this combination</li>
-    <li><strong>Red cells (❌):</strong> Gap - no workflow configured for this combination</li>
-    <li><strong>Dimensions:</strong> Automatically selected from workflow criteria (most frequently used)</li>
-    <li><strong>Use this for:</strong> Customer discussions, identifying missing workflows, planning configuration</li>
-  </ul>
-</div>
-</div></body></html>`;
+    const html = '<!DOCTYPE html><html><head><title>Smart Coverage Analysis - ' + templateName + '</title><style>' +
+        '* { margin: 0; padding: 0; box-sizing: border-box; }' +
+        'body { font-family: "Segoe UI", Tahoma, Geneva, sans-serif; background: #f5f7fa; padding: 2rem; color: #2c3e50; }' +
+        '.container { max-width: 1400px; margin: 0 auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }' +
+        '.header { margin-bottom: 2rem; border-bottom: 3px solid #9b59b6; padding-bottom: 1rem; }' +
+        '.header h1 { font-size: 2rem; color: #2c3e50; margin-bottom: 0.5rem; }' +
+        '.header p { color: #7f8c8d; font-size: 0.9rem; }' +
+        '.method-tag { background: #9b59b6; color: white; padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.8rem; margin-left: 1rem; }' +
+        '.matrix-wrapper { overflow-x: auto; margin-bottom: 2rem; }' +
+        'table { width: 100%; border-collapse: collapse; background: white; }' +
+        'th, td { padding: 0.8rem; text-align: center; border: 2px solid #ecf0f1; font-size: 0.9rem; }' +
+        'th { background: #34495e; color: white; font-weight: 600; }' +
+        '.row-header { text-align: left; font-weight: 600; background: #f8f9fa; color: #2c3e50; }' +
+        '.cell-covered { background: #d5f4e6; border-left: 4px solid #27ae60; }' +
+        '.cell-gap { background: #fadbd8; border-left: 4px solid #e74c3c; }' +
+        '.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }' +
+        '.stat-card { background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #9b59b6; }' +
+        '.stat-label { color: #7f8c8d; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; }' +
+        '.stat-value { font-size: 2rem; font-weight: bold; color: #2c3e50; margin-top: 0.5rem; }' +
+        '.dimension-info { background: #ecf0f1; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; }' +
+        '.dimension-title { font-weight: 600; color: #2c3e50; margin-bottom: 0.5rem; }' +
+        '.dimension-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; }' +
+        '.dimension-item { background: white; padding: 0.8rem; border-radius: 6px; border-left: 3px solid #9b59b6; font-size: 0.9rem; }' +
+        '.print-button { background: #9b59b6; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-size: 1rem; margin-bottom: 1rem; }' +
+        '@media print { body { background: white; } .print-button { display: none; } }' +
+        '</style></head><body><div class="container">' +
+        '<div class="header">' +
+        '<h1>📊 Smart Coverage Analysis <span class="method-tag">Workflow-Driven</span></h1>' +
+        '<p><strong>Form:</strong> ' + templateName + '</p>' +
+        '<p><strong>Generated:</strong> ' + timestamp + '</p>' +
+        '<p><strong>Analysis Method:</strong> Analyzed workflow rules to identify primary decision dimensions</p>' +
+        '</div>' +
+        '<button class="print-button" onclick="window.print()">🖨️ Print / Save as PDF</button>' +
+        '<div class="stats">' +
+        '<div class="stat-card"><div class="stat-label">Total Combinations</div><div class="stat-value">' + stats.total + '</div></div>' +
+        '<div class="stat-card"><div class="stat-label">Covered</div><div class="stat-value" style="color: #27ae60;">' + stats.covered + '</div></div>' +
+        '<div class="stat-card"><div class="stat-label">Gaps</div><div class="stat-value" style="color: #e74c3c;">' + stats.gaps + '</div></div>' +
+        '<div class="stat-card"><div class="stat-label">Coverage</div><div class="stat-value" style="color: #9b59b6;">' + stats.coverage + '%</div></div>' +
+        '</div>' +
+        '<div class="dimension-info">' +
+        '<div class="dimension-title">📈 Analysis Dimensions (derived from workflow rules)</div>' +
+        '<p style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 1rem;">These dimensions were automatically identified as the most important for workflow routing:</p>' +
+        '<div class="dimension-list">' +
+        '<div class="dimension-item"><strong>Primary:</strong> ' + (dim1.label || dim1.field) + '<br><small>' + dim1.workflows.length + ' workflows use this</small></div>' +
+        '<div class="dimension-item"><strong>Secondary:</strong> ' + (dim2.label || dim2.field) + '<br><small>' + dim2.workflows.length + ' workflows use this</small></div>' +
+        '</div></div>' +
+        '<div class="matrix-wrapper">' +
+        '<table><thead><tr><th style="text-align: left;">' + (dim1.label || dim1.field) + ' / ' + (dim2.label || dim2.field) + ' →</th>' + headerCols + '</tr></thead>' +
+        '<tbody>' + tableRows + '</tbody></table></div>' +
+        '<div style="margin-top: 3rem; padding: 1.5rem; background: #f8f9fa; border-left: 4px solid #9b59b6; border-radius: 8px;">' +
+        '<h3 style="color: #2c3e50; margin-bottom: 1rem;">💡 What This Shows</h3>' +
+        '<ul style="margin-left: 1.5rem; line-height: 1.8; color: #555;">' +
+        '<li><strong>Green cells (✅):</strong> Workflow exists to handle this combination</li>' +
+        '<li><strong>Red cells (❌):</strong> Gap - no workflow configured for this combination</li>' +
+        '<li><strong>Dimensions:</strong> Automatically selected from workflow criteria (most frequently used)</li>' +
+        '<li><strong>Use this for:</strong> Customer discussions, identifying missing workflows, planning configuration</li>' +
+        '</ul></div></div></body></html>';
 
     return html;
 }
