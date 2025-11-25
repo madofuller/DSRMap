@@ -1614,13 +1614,19 @@ function buildDynamicCoverageMatrix() {
         return null;
     }
 
-    // Step 2: Get the top 2 dimensions by importance
+    // Step 2: Get the top dimensions (1 or 2)
     const topDimensions = rankDimensions(criteriaMap, 2);
 
-    if (topDimensions.length < 2) {
-        console.warn('⚠️ Only 1 dimension found, need at least 2');
-        alert('⚠️ Cannot generate diagram:\nNeed at least 2 different criteria fields in workflows.');
+    if (topDimensions.length === 0) {
+        console.warn('⚠️ No dimensions found');
+        alert('⚠️ Cannot generate diagram:\nNo criteria fields found in workflows.');
         return null;
+    }
+
+    // Handle single dimension case (list view instead of matrix)
+    if (topDimensions.length === 1) {
+        console.log(`📋 Single dimension found, creating list view: ${topDimensions[0].label}`);
+        return buildSingleDimensionView(topDimensions[0], criteriaMap);
     }
 
     const [dim1, dim2] = topDimensions;
@@ -1681,6 +1687,47 @@ function buildDynamicCoverageMatrix() {
     };
 }
 
+// Build single dimension view (when workflows only use one criteria field)
+function buildSingleDimensionView(dimension, criteriaMap) {
+    console.log(`📊 Building single dimension view for: ${dimension.label}`);
+
+    const stats = { total: 0, covered: 0, gaps: 0 };
+    const items = [];
+
+    dimension.values.forEach(val => {
+        // Test if any workflow triggers for this value
+        const triggeredWorkflows = workflowRules.filter(workflow => {
+            if (!workflow.ruleCriteria) return false;
+            return evaluateDimensionMatch(workflow, dimension.field, val);
+        });
+
+        const covered = triggeredWorkflows.length > 0;
+        items.push({
+            value: val,
+            label: getOptionLabel(val) || val,
+            covered: covered,
+            workflowCount: triggeredWorkflows.length,
+            workflows: triggeredWorkflows.map(w => w.ruleName)
+        });
+
+        stats.total++;
+        if (covered) {
+            stats.covered++;
+        } else {
+            stats.gaps++;
+        }
+    });
+
+    stats.coverage = ((stats.covered / stats.total) * 100).toFixed(1);
+
+    return {
+        matrix: items,
+        dimensions: [dimension],
+        stats,
+        isSingleDimension: true
+    };
+}
+
 // Helper: Check if a workflow matches a dimension value
 function evaluateDimensionMatch(workflow, dimensionField, dimensionValue) {
     const criterion = workflow.ruleCriteria?.find(c => c.field === dimensionField);
@@ -1696,12 +1743,113 @@ function generateSmartCoverageDiagram() {
     const coverageData = buildDynamicCoverageMatrix();
     if (!coverageData) return;
 
-    const diagramHTML = buildSmartDiagramHTML(coverageData);
+    let diagramHTML;
+    if (coverageData.isSingleDimension) {
+        diagramHTML = buildSingleDimensionDiagramHTML(coverageData);
+    } else {
+        diagramHTML = buildSmartDiagramHTML(coverageData);
+    }
 
     // Open in new window
     const newWindow = window.open('', 'SmartCoverageMatrix', 'width=1200,height=800');
     newWindow.document.write(diagramHTML);
     newWindow.document.close();
+}
+
+// Build HTML for single dimension view
+function buildSingleDimensionDiagramHTML(coverageData) {
+    const { matrix, dimensions, stats } = coverageData;
+    const [dimension] = dimensions;
+    const timestamp = new Date().toLocaleString();
+    const templateName = webformData.webFormDto?.templateName || 'DSAR Form';
+
+    // Build the item cards
+    let itemsHtml = '';
+    matrix.forEach((item, idx) => {
+        const itemClass = item.covered ? 'item-covered' : 'item-gap';
+        const emoji = item.covered ? '✅' : '❌';
+        const dropdownId = 'dropdown-item-' + idx;
+
+        let workflowsHtml = '<div class="workflow-dropdown" id="' + dropdownId + '" style="display:none; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.1);">';
+        if (item.workflows.length > 0) {
+            item.workflows.forEach(wf => {
+                workflowsHtml += '<div style="font-size: 0.85rem; padding: 4px 0; color: #2c3e50;">• ' + wf + '</div>';
+            });
+        } else {
+            workflowsHtml += '<div style="color: #e74c3c; font-style: italic;">No workflows configured</div>';
+        }
+        workflowsHtml += '</div>';
+
+        itemsHtml += '<div class="item-card ' + itemClass + '" onclick="toggleWorkflows(\'' + dropdownId + '\')" style="cursor: pointer;">' +
+            '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">' +
+            '<strong style="font-size: 1.1rem;">' + emoji + ' ' + item.label + '</strong>' +
+            '<span style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">' + item.workflowCount + ' workflow' + (item.workflowCount !== 1 ? 's' : '') + '</span>' +
+            '</div>' +
+            workflowsHtml +
+            '</div>';
+    });
+
+    const html = '<!DOCTYPE html><html><head><title>Smart Coverage Analysis - ' + templateName + '</title><style>' +
+        '* { margin: 0; padding: 0; box-sizing: border-box; }' +
+        'body { font-family: "Segoe UI", Tahoma, Geneva, sans-serif; background: #f5f7fa; padding: 2rem; color: #2c3e50; }' +
+        '.container { max-width: 1000px; margin: 0 auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }' +
+        '.header { margin-bottom: 2rem; border-bottom: 3px solid #9b59b6; padding-bottom: 1rem; }' +
+        '.header h1 { font-size: 2rem; color: #2c3e50; margin-bottom: 0.5rem; }' +
+        '.header p { color: #7f8c8d; font-size: 0.9rem; }' +
+        '.method-tag { background: #9b59b6; color: white; padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.8rem; margin-left: 1rem; }' +
+        '.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }' +
+        '.stat-card { background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #9b59b6; }' +
+        '.stat-label { color: #7f8c8d; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; }' +
+        '.stat-value { font-size: 2rem; font-weight: bold; color: #2c3e50; margin-top: 0.5rem; }' +
+        '.dimension-info { background: #ecf0f1; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; }' +
+        '.dimension-title { font-weight: 600; color: #2c3e50; margin-bottom: 0.5rem; }' +
+        '.items-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }' +
+        '.item-card { padding: 1.5rem; border-radius: 8px; border-left: 4px solid #9b59b6; transition: all 0.2s; }' +
+        '.item-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.1); }' +
+        '.item-covered { background: #d5f4e6; border-left-color: #27ae60; }' +
+        '.item-gap { background: #fadbd8; border-left-color: #e74c3c; }' +
+        '.print-button { background: #9b59b6; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-size: 1rem; margin-bottom: 1rem; }' +
+        '@media print { body { background: white; } .print-button { display: none; } }' +
+        '</style></head><body><div class="container">' +
+        '<div class="header">' +
+        '<h1>📊 Smart Coverage Analysis <span class="method-tag">Single Dimension</span></h1>' +
+        '<p><strong>Form:</strong> ' + templateName + '</p>' +
+        '<p><strong>Generated:</strong> ' + timestamp + '</p>' +
+        '<p><strong>Analysis:</strong> Workflows use a single decision criterion: <strong>' + (dimension.label || dimension.field) + '</strong></p>' +
+        '</div>' +
+        '<button class="print-button" onclick="window.print()">🖨️ Print / Save as PDF</button>' +
+        '<div class="stats">' +
+        '<div class="stat-card"><div class="stat-label">Total Values</div><div class="stat-value">' + stats.total + '</div></div>' +
+        '<div class="stat-card"><div class="stat-label">Covered</div><div class="stat-value" style="color: #27ae60;">' + stats.covered + '</div></div>' +
+        '<div class="stat-card"><div class="stat-label">Gaps</div><div class="stat-value" style="color: #e74c3c;">' + stats.gaps + '</div></div>' +
+        '<div class="stat-card"><div class="stat-label">Coverage</div><div class="stat-value" style="color: #9b59b6;">' + stats.coverage + '%</div></div>' +
+        '</div>' +
+        '<div class="dimension-info">' +
+        '<div class="dimension-title">📋 Decision Criterion</div>' +
+        '<p style="font-size: 0.9rem; color: #7f8c8d;">' + (dimension.label || dimension.field) + ' - Used by ' + dimension.workflows.length + ' workflow' + (dimension.workflows.length !== 1 ? 's' : '') + '</p>' +
+        '</div>' +
+        '<div class="items-container">' + itemsHtml + '</div>' +
+        '<div style="padding: 1.5rem; background: #f8f9fa; border-left: 4px solid #9b59b6; border-radius: 8px;">' +
+        '<h3 style="color: #2c3e50; margin-bottom: 1rem;">💡 What This Shows</h3>' +
+        '<ul style="margin-left: 1.5rem; line-height: 1.8; color: #555;">' +
+        '<li><strong>Green cards (✅):</strong> Workflow exists for this value</li>' +
+        '<li><strong>Red cards (❌):</strong> Gap - no workflow for this value</li>' +
+        '<li><strong>Click a card</strong> to see all assigned workflows</li>' +
+        '</ul></div>' +
+        '</div>' +
+        '<script>' +
+        'function toggleWorkflows(dropdownId) {' +
+        '  const dropdown = document.getElementById(dropdownId);' +
+        '  if (dropdown.style.display === "none") {' +
+        '    dropdown.style.display = "block";' +
+        '  } else {' +
+        '    dropdown.style.display = "none";' +
+        '  }' +
+        '}' +
+        '</script>' +
+        '</body></html>';
+
+    return html;
 }
 
 // Build the HTML for smart diagram
