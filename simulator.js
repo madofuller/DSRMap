@@ -1894,7 +1894,7 @@ function buildSingleDimensionDiagramHTML(coverageData) {
         '<div class="stat-card"><div class="stat-label">Total Values</div><div class="stat-value">' + stats.total + '</div></div>' +
         '<div class="stat-card"><div class="stat-label">Covered</div><div class="stat-value" style="color: #27ae60;">' + stats.covered + '</div></div>' +
         '<div class="stat-card"><div class="stat-label">Gaps</div><div class="stat-value" style="color: #e74c3c;">' + stats.gaps + '</div></div>' +
-        '<div class="stat-card"><div class="stat-label">Coverage</div><div class="stat-value" style="color: #FFD700;">' + stats.coverage + '%</div></div>' +
+        '<div class="stat-card"><div class="stat-label">Coverage</div><div class="stat-value" style="color: #2c3e50;">' + stats.coverage + '%</div></div>' +
         '</div>' +
         '<div class="dimension-info">' +
         '<div class="dimension-title">Decision Criterion</div>' +
@@ -1956,7 +1956,7 @@ function buildSmartDiagramHTML(coverageData) {
 
             // Make clickable if there are workflows or it's a gap
             const clickableAttr = ' onclick="toggleWorkflows(\'' + dropdownId + '\')" style="cursor: pointer;"';
-            const summary = '<strong>' + cell.workflowCount + '</strong><br><small>' + (cell.workflowCount === 1 ? 'workflow' : 'workflows') + '</small>' + (cell.workflows.length > 1 ? '<br><small style="color: #FFD700; font-weight: 500;">Click to expand</small>' : '');
+            const summary = '<strong>' + cell.workflowCount + '</strong><br><small>' + (cell.workflowCount === 1 ? 'workflow' : 'workflows') + '</small>' + (cell.workflows.length > 1 ? '<br><small style="color: #2c3e50; font-weight: 500;">Click to expand</small>' : '');
 
             return '<td id="' + cellIdStr + '" class="' + cellClass + '"' + clickableAttr + '>' + summary + workflowsHtml + '</td>';
         }).join('');
@@ -2000,7 +2000,7 @@ function buildSmartDiagramHTML(coverageData) {
         '<div class="stat-card"><div class="stat-label">Total Combinations</div><div class="stat-value">' + stats.total + '</div></div>' +
         '<div class="stat-card"><div class="stat-label">Covered</div><div class="stat-value" style="color: #27ae60;">' + stats.covered + '</div></div>' +
         '<div class="stat-card"><div class="stat-label">Gaps</div><div class="stat-value" style="color: #e74c3c;">' + stats.gaps + '</div></div>' +
-        '<div class="stat-card"><div class="stat-label">Coverage</div><div class="stat-value" style="color: #FFD700;">' + stats.coverage + '%</div></div>' +
+        '<div class="stat-card"><div class="stat-label">Coverage</div><div class="stat-value" style="color: #2c3e50;">' + stats.coverage + '%</div></div>' +
         '</div>' +
         '<div class="dimension-info">' +
         '<div class="dimension-title">Analysis Dimensions (derived from workflow rules)</div>' +
