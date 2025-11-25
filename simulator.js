@@ -1714,13 +1714,32 @@ function buildSmartDiagramHTML(coverageData) {
     // Build header columns
     const headerCols = dim2.values.map(val => '<th>' + (getOptionLabel(val) || val) + '</th>').join('');
 
-    // Build table rows
+    // Build table rows with expandable workflow details
+    let cellId = 0;
     const tableRows = matrix.map(row => {
         const cells = row.cells.map(cell => {
             const cellClass = cell.covered ? 'cell-covered' : 'cell-gap';
             const emoji = cell.covered ? '✅' : '❌';
-            const workflow = cell.workflows.length > 0 ? '<div style="font-size: 0.75rem; margin-top: 4px;">' + cell.workflows.slice(0, 1).join(', ') + '</div>' : '';
-            return '<td class="' + cellClass + '"><strong>' + emoji + ' ' + cell.workflowCount + '</strong><br><small>' + (cell.workflowCount === 1 ? 'workflow' : 'workflows') + '</small>' + workflow + '</td>';
+            const cellIdStr = 'cell-' + (cellId++);
+            const dropdownId = 'dropdown-' + cellIdStr;
+
+            // Build workflow list for dropdown
+            let workflowsHtml = '';
+            if (cell.workflows.length > 0) {
+                workflowsHtml = '<div class="workflow-dropdown" id="' + dropdownId + '" style="display:none; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.1);">';
+                cell.workflows.forEach(wf => {
+                    workflowsHtml += '<div style="font-size: 0.75rem; padding: 4px 0; color: #2c3e50;">• ' + wf + '</div>';
+                });
+                workflowsHtml += '</div>';
+            } else {
+                workflowsHtml = '<div class="workflow-dropdown" id="' + dropdownId + '" style="display:none; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.1); color: #e74c3c; font-style: italic;">No workflows configured</div>';
+            }
+
+            // Make clickable if there are workflows or it's a gap
+            const clickableAttr = ' onclick="toggleWorkflows(\'' + dropdownId + '\')" style="cursor: pointer;"';
+            const summary = '<strong>' + emoji + ' ' + cell.workflowCount + '</strong><br><small>' + (cell.workflowCount === 1 ? 'workflow' : 'workflows') + '</small>' + (cell.workflows.length > 1 ? '<br><small style="color: #9b59b6; font-weight: 500;">Click to expand</small>' : '');
+
+            return '<td id="' + cellIdStr + '" class="' + cellClass + '"' + clickableAttr + '>' + summary + workflowsHtml + '</td>';
         }).join('');
         return '<tr><td class="row-header">' + row.label + '</td>' + cells + '</tr>';
     }).join('');
@@ -1780,8 +1799,19 @@ function buildSmartDiagramHTML(coverageData) {
         '<li><strong>Green cells (✅):</strong> Workflow exists to handle this combination</li>' +
         '<li><strong>Red cells (❌):</strong> Gap - no workflow configured for this combination</li>' +
         '<li><strong>Dimensions:</strong> Automatically selected from workflow criteria (most frequently used)</li>' +
-        '<li><strong>Use this for:</strong> Customer discussions, identifying missing workflows, planning configuration</li>' +
-        '</ul></div></div></body></html>';
+        '</ul></div>' +
+        '</div>' +
+        '<script>' +
+        'function toggleWorkflows(dropdownId) {' +
+        '  const dropdown = document.getElementById(dropdownId);' +
+        '  if (dropdown.style.display === "none") {' +
+        '    dropdown.style.display = "block";' +
+        '  } else {' +
+        '    dropdown.style.display = "none";' +
+        '  }' +
+        '}' +
+        '</script>' +
+        '</body></html>';
 
     return html;
 }
