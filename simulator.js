@@ -1865,22 +1865,22 @@ function buildSingleDimensionDiagramHTML(coverageData) {
         '* { margin: 0; padding: 0; box-sizing: border-box; }' +
         'body { font-family: "Segoe UI", Tahoma, Geneva, sans-serif; background: #f5f7fa; padding: 2rem; color: #2c3e50; }' +
         '.container { max-width: 1000px; margin: 0 auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }' +
-        '.header { margin-bottom: 2rem; border-bottom: 3px solid #9b59b6; padding-bottom: 1rem; }' +
+        '.header { margin-bottom: 2rem; border-bottom: 3px solid #FFD700; padding-bottom: 1rem; }' +
         '.header h1 { font-size: 2rem; color: #2c3e50; margin-bottom: 0.5rem; }' +
         '.header p { color: #7f8c8d; font-size: 0.9rem; }' +
-        '.method-tag { background: #9b59b6; color: white; padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.8rem; margin-left: 1rem; }' +
+        '.method-tag { background: #FFD700; color: white; padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.8rem; margin-left: 1rem; }' +
         '.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }' +
-        '.stat-card { background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #9b59b6; }' +
+        '.stat-card { background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #FFD700; }' +
         '.stat-label { color: #7f8c8d; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; }' +
         '.stat-value { font-size: 2rem; font-weight: bold; color: #2c3e50; margin-top: 0.5rem; }' +
         '.dimension-info { background: #ecf0f1; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; }' +
         '.dimension-title { font-weight: 600; color: #2c3e50; margin-bottom: 0.5rem; }' +
         '.items-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }' +
-        '.item-card { padding: 1.5rem; border-radius: 8px; border-left: 4px solid #9b59b6; transition: all 0.2s; }' +
+        '.item-card { padding: 1.5rem; border-radius: 8px; border-left: 4px solid #FFD700; transition: all 0.2s; }' +
         '.item-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.1); }' +
         '.item-covered { background: #d5f4e6; border-left-color: #27ae60; }' +
         '.item-gap { background: #fadbd8; border-left-color: #e74c3c; }' +
-        '.print-button { background: #9b59b6; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-size: 1rem; margin-bottom: 1rem; }' +
+        '.print-button { background: #FFD700; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-size: 1rem; margin-bottom: 1rem; }' +
         '@media print { body { background: white; } .print-button { display: none; } }' +
         '</style></head><body><div class="container">' +
         '<div class="header">' +
@@ -1894,14 +1894,14 @@ function buildSingleDimensionDiagramHTML(coverageData) {
         '<div class="stat-card"><div class="stat-label">Total Values</div><div class="stat-value">' + stats.total + '</div></div>' +
         '<div class="stat-card"><div class="stat-label">Covered</div><div class="stat-value" style="color: #27ae60;">' + stats.covered + '</div></div>' +
         '<div class="stat-card"><div class="stat-label">Gaps</div><div class="stat-value" style="color: #e74c3c;">' + stats.gaps + '</div></div>' +
-        '<div class="stat-card"><div class="stat-label">Coverage</div><div class="stat-value" style="color: #9b59b6;">' + stats.coverage + '%</div></div>' +
+        '<div class="stat-card"><div class="stat-label">Coverage</div><div class="stat-value" style="color: #FFD700;">' + stats.coverage + '%</div></div>' +
         '</div>' +
         '<div class="dimension-info">' +
         '<div class="dimension-title">Decision Criterion</div>' +
         '<p style="font-size: 0.9rem; color: #7f8c8d;">' + (dimension.label || dimension.field) + ' - Used by ' + dimension.workflows.length + ' workflow' + (dimension.workflows.length !== 1 ? 's' : '') + '</p>' +
         '</div>' +
         '<div class="items-container">' + itemsHtml + '</div>' +
-        '<div style="padding: 1.5rem; background: #f8f9fa; border-left: 4px solid #9b59b6; border-radius: 8px;">' +
+        '<div style="padding: 1.5rem; background: #f8f9fa; border-left: 4px solid #FFD700; border-radius: 8px;">' +
         '<h3 style="color: #2c3e50; margin-bottom: 1rem;">What This Shows</h3>' +
         '<ul style="margin-left: 1.5rem; line-height: 1.8; color: #555;">' +
         '<li><strong>Green cards (✅):</strong> Workflow exists for this value</li>' +
@@ -1956,7 +1956,7 @@ function buildSmartDiagramHTML(coverageData) {
 
             // Make clickable if there are workflows or it's a gap
             const clickableAttr = ' onclick="toggleWorkflows(\'' + dropdownId + '\')" style="cursor: pointer;"';
-            const summary = '<strong>' + cell.workflowCount + '</strong><br><small>' + (cell.workflowCount === 1 ? 'workflow' : 'workflows') + '</small>' + (cell.workflows.length > 1 ? '<br><small style="color: #9b59b6; font-weight: 500;">Click to expand</small>' : '');
+            const summary = '<strong>' + cell.workflowCount + '</strong><br><small>' + (cell.workflowCount === 1 ? 'workflow' : 'workflows') + '</small>' + (cell.workflows.length > 1 ? '<br><small style="color: #FFD700; font-weight: 500;">Click to expand</small>' : '');
 
             return '<td id="' + cellIdStr + '" class="' + cellClass + '"' + clickableAttr + '>' + summary + workflowsHtml + '</td>';
         }).join('');
@@ -1967,10 +1967,10 @@ function buildSmartDiagramHTML(coverageData) {
         '* { margin: 0; padding: 0; box-sizing: border-box; }' +
         'body { font-family: "Segoe UI", Tahoma, Geneva, sans-serif; background: #f5f7fa; padding: 2rem; color: #2c3e50; }' +
         '.container { max-width: 1400px; margin: 0 auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }' +
-        '.header { margin-bottom: 2rem; border-bottom: 3px solid #9b59b6; padding-bottom: 1rem; }' +
+        '.header { margin-bottom: 2rem; border-bottom: 3px solid #FFD700; padding-bottom: 1rem; }' +
         '.header h1 { font-size: 2rem; color: #2c3e50; margin-bottom: 0.5rem; }' +
         '.header p { color: #7f8c8d; font-size: 0.9rem; }' +
-        '.method-tag { background: #9b59b6; color: white; padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.8rem; margin-left: 1rem; }' +
+        '.method-tag { background: #FFD700; color: white; padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.8rem; margin-left: 1rem; }' +
         '.matrix-wrapper { overflow-x: auto; margin-bottom: 2rem; }' +
         'table { width: 100%; border-collapse: collapse; background: white; }' +
         'th, td { padding: 0.8rem; text-align: center; border: 2px solid #ecf0f1; font-size: 0.9rem; }' +
@@ -1979,14 +1979,14 @@ function buildSmartDiagramHTML(coverageData) {
         '.cell-covered { background: #d5f4e6; border-left: 4px solid #27ae60; }' +
         '.cell-gap { background: #fadbd8; border-left: 4px solid #e74c3c; }' +
         '.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }' +
-        '.stat-card { background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #9b59b6; }' +
+        '.stat-card { background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #FFD700; }' +
         '.stat-label { color: #7f8c8d; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; }' +
         '.stat-value { font-size: 2rem; font-weight: bold; color: #2c3e50; margin-top: 0.5rem; }' +
         '.dimension-info { background: #ecf0f1; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; }' +
         '.dimension-title { font-weight: 600; color: #2c3e50; margin-bottom: 0.5rem; }' +
         '.dimension-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; }' +
-        '.dimension-item { background: white; padding: 0.8rem; border-radius: 6px; border-left: 3px solid #9b59b6; font-size: 0.9rem; }' +
-        '.print-button { background: #9b59b6; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-size: 1rem; margin-bottom: 1rem; }' +
+        '.dimension-item { background: white; padding: 0.8rem; border-radius: 6px; border-left: 3px solid #FFD700; font-size: 0.9rem; }' +
+        '.print-button { background: #FFD700; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-size: 1rem; margin-bottom: 1rem; }' +
         '@media print { body { background: white; } .print-button { display: none; } }' +
         '</style></head><body><div class="container">' +
         '<div class="header">' +
@@ -2000,7 +2000,7 @@ function buildSmartDiagramHTML(coverageData) {
         '<div class="stat-card"><div class="stat-label">Total Combinations</div><div class="stat-value">' + stats.total + '</div></div>' +
         '<div class="stat-card"><div class="stat-label">Covered</div><div class="stat-value" style="color: #27ae60;">' + stats.covered + '</div></div>' +
         '<div class="stat-card"><div class="stat-label">Gaps</div><div class="stat-value" style="color: #e74c3c;">' + stats.gaps + '</div></div>' +
-        '<div class="stat-card"><div class="stat-label">Coverage</div><div class="stat-value" style="color: #9b59b6;">' + stats.coverage + '%</div></div>' +
+        '<div class="stat-card"><div class="stat-label">Coverage</div><div class="stat-value" style="color: #FFD700;">' + stats.coverage + '%</div></div>' +
         '</div>' +
         '<div class="dimension-info">' +
         '<div class="dimension-title">Analysis Dimensions (derived from workflow rules)</div>' +
@@ -2012,7 +2012,7 @@ function buildSmartDiagramHTML(coverageData) {
         '<div class="matrix-wrapper">' +
         '<table><thead><tr><th style="text-align: left;">' + (dim1.label || dim1.field) + ' / ' + (dim2.label || dim2.field) + ' →</th>' + headerCols + '</tr></thead>' +
         '<tbody>' + tableRows + '</tbody></table></div>' +
-        '<div style="margin-top: 3rem; padding: 1.5rem; background: #f8f9fa; border-left: 4px solid #9b59b6; border-radius: 8px;">' +
+        '<div style="margin-top: 3rem; padding: 1.5rem; background: #f8f9fa; border-left: 4px solid #FFD700; border-radius: 8px;">' +
         '<h3 style="color: #2c3e50; margin-bottom: 1rem;">What This Shows</h3>' +
         '<ul style="margin-left: 1.5rem; line-height: 1.8; color: #555;">' +
         '<li><strong>Green cells (✅):</strong> Workflow exists to handle this combination</li>' +
