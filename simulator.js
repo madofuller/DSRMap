@@ -1548,6 +1548,397 @@ function evaluateWorkflowRule(workflow) {
     };
 }
 
+// Smart Workflow Analysis: Analyzes workflow rules to identify decision dimensions
+function analyzeWorkflowDimensions() {
+    console.log('🔍 Analyzing workflow dimensions...');
+    const criteriaMap = {};
+
+    // Extract all criteria fields from all workflows
+    workflowRules.forEach(workflow => {
+        if (!workflow.ruleCriteria) return;
+
+        workflow.ruleCriteria.forEach(criterion => {
+            const field = criterion.field;
+            if (!criteriaMap[field]) {
+                criteriaMap[field] = {
+                    field: field,
+                    label: getFieldLabel(field),
+                    workflows: [],
+                    values: new Set(),
+                    count: 0
+                };
+            }
+            if (!criteriaMap[field].workflows.includes(workflow.ruleName)) {
+                criteriaMap[field].workflows.push(workflow.ruleName);
+            }
+            criterion.values.forEach(v => criteriaMap[field].values.add(v));
+            criteriaMap[field].count++;
+        });
+    });
+
+    // Convert Sets to Arrays for easier handling
+    Object.values(criteriaMap).forEach(crit => {
+        crit.values = Array.from(crit.values);
+    });
+
+    console.log('📊 Criteria found:', Object.keys(criteriaMap).join(', '));
+    return criteriaMap;
+}
+
+// Rank dimensions by importance (workflow frequency)
+function rankDimensions(criteriaMap, topN = 3) {
+    console.log('📈 Ranking dimensions by importance...');
+
+    const ranked = Object.values(criteriaMap)
+        .sort((a, b) => b.workflows.length - a.workflows.length)
+        .slice(0, topN);
+
+    console.log(`Top ${topN} dimensions:`);
+    ranked.forEach((dim, idx) => {
+        console.log(`  ${idx + 1}. ${dim.label || dim.field} (${dim.workflows.length} workflows, ${dim.values.length} values)`);
+    });
+
+    return ranked;
+}
+
+// Build dynamic coverage matrix based on actual workflow dimensions
+function buildDynamicCoverageMatrix() {
+    console.log('🎯 Building dynamic coverage matrix...');
+
+    // Step 1: Analyze what workflows actually care about
+    const criteriaMap = analyzeWorkflowDimensions();
+
+    if (Object.keys(criteriaMap).length === 0) {
+        console.warn('⚠️ No workflow criteria found');
+        alert('⚠️ Cannot generate diagram:\nNo workflow criteria found. Check that workflows are configured.');
+        return null;
+    }
+
+    // Step 2: Get the top 2 dimensions by importance
+    const topDimensions = rankDimensions(criteriaMap, 2);
+
+    if (topDimensions.length < 2) {
+        console.warn('⚠️ Only 1 dimension found, need at least 2');
+        alert('⚠️ Cannot generate diagram:\nNeed at least 2 different criteria fields in workflows.');
+        return null;
+    }
+
+    const [dim1, dim2] = topDimensions;
+
+    console.log(`📋 Creating matrix: ${dim1.label} × ${dim2.label}`);
+
+    // Step 3: Build the matrix
+    const matrix = [];
+    const stats = { total: 0, covered: 0, gaps: 0 };
+
+    dim1.values.forEach(val1 => {
+        const row = {
+            value: val1,
+            label: getOptionLabel(val1) || val1,
+            cells: []
+        };
+
+        dim2.values.forEach(val2 => {
+            // Test if any workflow triggers for this combination
+            const triggeredWorkflows = workflowRules.filter(workflow => {
+                if (!workflow.ruleCriteria) return false;
+
+                // Check if this workflow covers both dimensions
+                const dim1Match = evaluateDimensionMatch(workflow, dim1.field, val1);
+                const dim2Match = evaluateDimensionMatch(workflow, dim2.field, val2);
+
+                return dim1Match && dim2Match;
+            });
+
+            const cell = {
+                value: val2,
+                label: getOptionLabel(val2) || val2,
+                covered: triggeredWorkflows.length > 0,
+                workflowCount: triggeredWorkflows.length,
+                workflows: triggeredWorkflows.map(w => w.ruleName)
+            };
+
+            row.cells.push(cell);
+            stats.total++;
+            if (cell.covered) {
+                stats.covered++;
+            } else {
+                stats.gaps++;
+            }
+        });
+
+        matrix.push(row);
+    });
+
+    stats.coverage = ((stats.covered / stats.total) * 100).toFixed(1);
+
+    console.log(`✅ Matrix built: ${stats.covered}/${stats.total} covered (${stats.coverage}%)`);
+
+    return {
+        matrix,
+        dimensions: [dim1, dim2],
+        stats
+    };
+}
+
+// Helper: Check if a workflow matches a dimension value
+function evaluateDimensionMatch(workflow, dimensionField, dimensionValue) {
+    const criterion = workflow.ruleCriteria?.find(c => c.field === dimensionField);
+    if (!criterion) return false; // This workflow doesn't use this dimension
+
+    return criterion.values.includes(dimensionValue);
+}
+
+// Generate Smart Coverage Diagram
+function generateSmartCoverageDiagram() {
+    console.log('📊 Generating smart coverage diagram...');
+
+    const coverageData = buildDynamicCoverageMatrix();
+    if (!coverageData) return;
+
+    const diagramHTML = buildSmartDiagramHTML(coverageData);
+
+    // Open in new window
+    const newWindow = window.open('', 'SmartCoverageMatrix', 'width=1200,height=800');
+    newWindow.document.write(diagramHTML);
+    newWindow.document.close();
+}
+
+// Build the HTML for smart diagram
+function buildSmartDiagramHTML(coverageData) {
+    const { matrix, dimensions, stats } = coverageData;
+    const [dim1, dim2] = dimensions;
+    const timestamp = new Date().toLocaleString();
+    const templateName = webformData.webFormDto?.templateName || 'DSAR Form';
+
+    const html = `<!DOCTYPE html>
+<html><head><title>Smart Coverage Analysis - ${templateName}</title><style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', Tahoma, Geneva, sans-serif; background: #f5f7fa; padding: 2rem; color: #2c3e50; }
+.container { max-width: 1400px; margin: 0 auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.header { margin-bottom: 2rem; border-bottom: 3px solid #9b59b6; padding-bottom: 1rem; }
+.header h1 { font-size: 2rem; color: #2c3e50; margin-bottom: 0.5rem; }
+.header p { color: #7f8c8d; font-size: 0.9rem; }
+.method-tag { background: #9b59b6; color: white; padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.8rem; margin-left: 1rem; }
+.matrix-wrapper { overflow-x: auto; margin-bottom: 2rem; }
+table { width: 100%; border-collapse: collapse; background: white; }
+th, td { padding: 0.8rem; text-align: center; border: 2px solid #ecf0f1; font-size: 0.9rem; }
+th { background: #34495e; color: white; font-weight: 600; }
+.row-header { text-align: left; font-weight: 600; background: #f8f9fa; color: #2c3e50; }
+.cell-covered { background: #d5f4e6; border-left: 4px solid #27ae60; }
+.cell-covered::before { content: '✅'; font-weight: bold; margin-right: 4px; }
+.cell-gap { background: #fadbd8; border-left: 4px solid #e74c3c; }
+.cell-gap::before { content: '❌'; font-weight: bold; margin-right: 4px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+.stat-card { background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #9b59b6; }
+.stat-label { color: #7f8c8d; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; }
+.stat-value { font-size: 2rem; font-weight: bold; color: #2c3e50; margin-top: 0.5rem; }
+.dimension-info { background: #ecf0f1; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; }
+.dimension-title { font-weight: 600; color: #2c3e50; margin-bottom: 0.5rem; }
+.dimension-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; }
+.dimension-item { background: white; padding: 0.8rem; border-radius: 6px; border-left: 3px solid #9b59b6; font-size: 0.9rem; }
+.print-button { background: #9b59b6; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-size: 1rem; margin-bottom: 1rem; }
+@media print { body { background: white; } .print-button { display: none; } }
+</style></head><body><div class="container">
+<div class="header">
+  <h1>📊 Smart Coverage Analysis <span class="method-tag">Workflow-Driven</span></h1>
+  <p><strong>Form:</strong> ${templateName}</p>
+  <p><strong>Generated:</strong> ${timestamp}</p>
+  <p><strong>Analysis Method:</strong> Analyzed workflow rules to identify primary decision dimensions</p>
+</div>
+
+<button class="print-button" onclick="window.print()">🖨️ Print / Save as PDF</button>
+
+<div class="stats">
+  <div class="stat-card">
+    <div class="stat-label">Total Combinations</div>
+    <div class="stat-value">${stats.total}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Covered</div>
+    <div class="stat-value" style="color: #27ae60;">${stats.covered}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Gaps</div>
+    <div class="stat-value" style="color: #e74c3c;">${stats.gaps}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Coverage</div>
+    <div class="stat-value" style="color: #9b59b6;">${stats.coverage}%</div>
+  </div>
+</div>
+
+<div class="dimension-info">
+  <div class="dimension-title">📈 Analysis Dimensions (derived from workflow rules)</div>
+  <p style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 1rem;">These dimensions were automatically identified as the most important for workflow routing:</p>
+  <div class="dimension-list">
+    <div class="dimension-item"><strong>Primary:</strong> ${dim1.label || dim1.field}<br><small>${dim1.workflows.length} workflows use this</small></div>
+    <div class="dimension-item"><strong>Secondary:</strong> ${dim2.label || dim2.field}<br><small>${dim2.workflows.length} workflows use this</small></div>
+  </div>
+</div>
+
+<div class="matrix-wrapper">
+  <table>
+    <thead>
+      <tr>
+        <th style="text-align: left;">${dim1.label || dim1.field} / ${dim2.label || dim2.field} →</th>
+        ${dim2.values.map(val => \`<th>\${getOptionLabel(val) || val}</th>\`).join('')}
+      </tr>
+    </thead>
+    <tbody>
+      ${matrix.map(row => \`
+        <tr>
+          <td class="row-header">\${row.label}</td>
+          \${row.cells.map(cell => \`
+            <td class="\${cell.covered ? 'cell-covered' : 'cell-gap'}">
+              <strong>\${cell.workflowCount}</strong><br>
+              <small>\${cell.workflowCount === 1 ? 'workflow' : 'workflows'}</small>
+              \${cell.workflows.length > 0 ? \`<div style="font-size: 0.75rem; margin-top: 4px;">\${cell.workflows.slice(0, 1).join(', ')}</div>\` : ''}
+            </td>
+          \`).join('')}
+        </tr>
+      \`).join('')}
+    </tbody>
+  </table>
+</div>
+
+<div style="margin-top: 3rem; padding: 1.5rem; background: #f8f9fa; border-left: 4px solid #9b59b6; border-radius: 8px;">
+  <h3 style="color: #2c3e50; margin-bottom: 1rem;">💡 What This Shows</h3>
+  <ul style="margin-left: 1.5rem; line-height: 1.8; color: #555;">
+    <li><strong>Green cells (✅):</strong> Workflow exists to handle this combination</li>
+    <li><strong>Red cells (❌):</strong> Gap - no workflow configured for this combination</li>
+    <li><strong>Dimensions:</strong> Automatically selected from workflow criteria (most frequently used)</li>
+    <li><strong>Use this for:</strong> Customer discussions, identifying missing workflows, planning configuration</li>
+  </ul>
+</div>
+</div></body></html>`;
+
+    return html;
+}
+
+// Coverage Matrix Diagram: Visual representation for customer discussion
+function generateCoverageMatrix() {
+    console.log('📊 Generating coverage matrix diagram...');
+
+    // Extract subject types and request types
+    const subjectTypes = (webformData.webFormDto?.subjectTypes || [])
+        .filter(st => st.isSelected !== false && st.status !== 20);
+
+    const requestTypes = (webformData.webFormDto?.requestTypes || [])
+        .filter(rt => rt.isSelected !== false && rt.status !== 20);
+
+    if (subjectTypes.length === 0 || requestTypes.length === 0) {
+        alert('⚠️ Cannot generate diagram:\nForm needs subject types and request types configured.');
+        return;
+    }
+
+    // Find subject type and request type fields in allFields
+    const subjectTypeField = allFields.find(f =>
+        f.key === 'subjectType' || f.key.toLowerCase().includes('subjecttype')
+    );
+    const requestTypeField = allFields.find(f =>
+        f.key === 'requestType' || f.key.toLowerCase().includes('requesttype')
+    );
+
+    if (!subjectTypeField || !requestTypeField) {
+        alert('⚠️ Cannot generate diagram:\nCould not find subject type or request type fields.');
+        return;
+    }
+
+    // Build coverage matrix
+    const matrix = [];
+    for (const subject of subjectTypes) {
+        const row = { subject: subject.fieldName };
+        for (const request of requestTypes) {
+            // Simulate selection
+            const savedSelections = { ...currentSelections };
+            currentSelections[subjectTypeField.key] = subject.fieldName;
+            currentSelections[requestTypeField.key] = request.fieldName;
+
+            // Check which workflows trigger
+            const triggeredWorkflows = workflowRules.filter(wf =>
+                evaluateWorkflowRule(wf).triggered
+            );
+
+            // Restore selections
+            currentSelections = savedSelections;
+
+            row[request.fieldName] = {
+                triggered: triggeredWorkflows.length > 0,
+                workflowCount: triggeredWorkflows.length,
+                workflows: triggeredWorkflows.map(w => w.ruleName)
+            };
+        }
+        matrix.push(row);
+    }
+
+    // Generate HTML diagram
+    const diagramHTML = buildCoverageDiagram(matrix, subjectTypes, requestTypes);
+
+    // Open in new window
+    const newWindow = window.open('', 'CoverageMatrix', 'width=1200,height=800');
+    newWindow.document.write(diagramHTML);
+    newWindow.document.close();
+}
+
+function buildCoverageDiagram(matrix, subjectTypes, requestTypes) {
+    const timestamp = new Date().toLocaleString();
+    const templateName = webformData.webFormDto?.templateName || 'DSAR Form';
+
+    const html = `<!DOCTYPE html>
+<html><head><title>Coverage Matrix - ${templateName}</title><style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f7fa; padding: 2rem; color: #2c3e50; }
+.container { max-width: 1400px; margin: 0 auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.header { margin-bottom: 2rem; border-bottom: 3px solid #3498db; padding-bottom: 1rem; }
+.header h1 { font-size: 2rem; color: #2c3e50; margin-bottom: 0.5rem; }
+.header p { color: #7f8c8d; font-size: 0.9rem; }
+.matrix-wrapper { overflow-x: auto; margin-bottom: 2rem; }
+table { width: 100%; border-collapse: collapse; background: white; }
+th, td { padding: 1rem; text-align: center; border: 2px solid #ecf0f1; }
+th { background: #34495e; color: white; font-weight: 600; }
+.row-header { text-align: left; font-weight: 600; background: #f8f9fa; color: #2c3e50; }
+.cell-covered { background: #d5f4e6; border-left: 4px solid #27ae60; }
+.cell-covered::before { content: '✅ '; font-weight: bold; }
+.cell-gap { background: #fadbd8; border-left: 4px solid #e74c3c; }
+.cell-gap::before { content: '❌ '; font-weight: bold; }
+.cell-content { font-size: 0.85rem; line-height: 1.4; }
+.workflow-list { font-size: 0.75rem; color: #555; margin-top: 0.5rem; font-style: italic; }
+.legend { margin: 2rem 0; padding: 1.5rem; background: #ecf0f1; border-radius: 8px; }
+.legend-item { display: inline-block; margin-right: 2rem; margin-bottom: 0.5rem; }
+.legend-box { display: inline-block; width: 20px; height: 20px; margin-right: 0.5rem; border-radius: 4px; vertical-align: middle; }
+.legend-covered { background: #d5f4e6; border: 2px solid #27ae60; }
+.legend-gap { background: #fadbd8; border: 2px solid #e74c3c; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+.stat-card { background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #3498db; }
+.stat-label { color: #7f8c8d; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; }
+.stat-value { font-size: 2rem; font-weight: bold; color: #2c3e50; margin-top: 0.5rem; }
+.print-button { background: #3498db; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-size: 1rem; margin-bottom: 1rem; }
+@media print { body { background: white; } .print-button { display: none; } }
+</style></head><body><div class="container"><div class="header"><h1>📊 Coverage Matrix Diagram</h1><p><strong>Form:</strong> ${templateName}</p><p><strong>Generated:</strong> ${timestamp}</p></div><button class="print-button" onclick="window.print()">🖨️ Print / Save as PDF</button><div class="stats"><div class="stat-card"><div class="stat-label">Subject Types</div><div class="stat-value">${subjectTypes.length}</div></div><div class="stat-card"><div class="stat-label">Request Types</div><div class="stat-value">${requestTypes.length}</div></div><div class="stat-card"><div class="stat-label">Total Combinations</div><div class="stat-value">${subjectTypes.length * requestTypes.length}</div></div><div class="stat-card"><div class="stat-label">Covered</div><div class="stat-value" style="color: #27ae60;">${calculateCovered(matrix)}</div></div><div class="stat-card"><div class="stat-label">Gaps</div><div class="stat-value" style="color: #e74c3c;">${calculateGaps(matrix)}</div></div></div><div class="legend"><h3>Legend</h3><div class="legend-item"><span class="legend-box legend-covered"></span><span>Covered - Workflow exists</span></div><div class="legend-item"><span class="legend-box legend-gap"></span><span>Gap - No workflow</span></div></div><div class="matrix-wrapper"><table><thead><tr><th style="text-align: left;">WHO / WHAT →</th>${requestTypes.map(rt => `<th>${getOptionLabel(rt.fieldName) || rt.fieldName}</th>`).join('')}</tr></thead><tbody>${matrix.map(row => `<tr><td class="row-header">${getOptionLabel(row.subject) || row.subject}</td>${requestTypes.map(rt => `<td class="${row[rt.fieldName].triggered ? 'cell-covered' : 'cell-gap'}"><div class="cell-content">${row[rt.fieldName].workflowCount} workflow${row[rt.fieldName].workflowCount !== 1 ? 's' : ''}</div></td>`).join('')}</tr>`).join('')}</tbody></table></div></div></body></html>`;
+
+    return html;
+}
+
+function calculateCovered(matrix) {
+    let count = 0;
+    matrix.forEach(row => {
+        Object.keys(row).forEach(key => {
+            if (key !== 'subject' && row[key].triggered) count++;
+        });
+    });
+    return count;
+}
+
+function calculateGaps(matrix) {
+    let count = 0;
+    matrix.forEach(row => {
+        Object.keys(row).forEach(key => {
+            if (key !== 'subject' && !row[key].triggered) count++;
+        });
+    });
+    return count;
+}
 
 // Gap Detection System: Finds combinations of WHO+WHAT that don't trigger workflows
 function detectWorkflowGaps() {
