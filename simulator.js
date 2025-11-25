@@ -24,7 +24,7 @@ async function sha512(str) {
 
 // Build lookup table for country hashes
 async function buildCountryHashLookup() {
-    console.log('🔐 Building country hash lookup table...');
+    console.log('� Building country hash lookup table...');
     countryHashLookup = {}; // Reset lookup table
 
     // Find the country field - try multiple strategies
@@ -80,11 +80,11 @@ async function buildCountryHashLookup() {
     }
 
     if (!countryField.options || countryField.options.length === 0) {
-        console.log('⚠️ Country field found but has no options in JSON');
+        console.log('️ Country field found but has no options in JSON');
         console.log('Country field key:', countryField.key);
         console.log('Country field label:', countryField.label);
         console.log('Country field type:', countryField.type);
-        console.log('🔄 Using comprehensive ISO country list as fallback...');
+        console.log('� Using comprehensive ISO country list as fallback...');
         
         // Use comprehensive country list as fallback
         countryField.options = getWorldCountriesOptions();
@@ -132,7 +132,7 @@ async function buildCountryHashLookup() {
     // Show a few example hashes for debugging
     const exampleKeys = Object.keys(countryHashLookup).slice(0, 3);
     if (exampleKeys.length > 0) {
-        console.log('📝 Example hash mappings:');
+        console.log('� Example hash mappings:');
         exampleKeys.forEach(hash => {
             const entry = countryHashLookup[hash];
             console.log(`   ${hash.substring(0, 16)}... → ${entry.originalKey} (from "${entry.hashedVariant}")`);
@@ -142,7 +142,7 @@ async function buildCountryHashLookup() {
 
 // Build lookup table for state hashes
 async function buildStateHashLookup() {
-    console.log('🔐 Building state hash lookup table...');
+    console.log('� Building state hash lookup table...');
     stateHashLookup = {}; // Reset lookup table
 
     // Find the state field - try multiple strategies
@@ -159,7 +159,7 @@ async function buildStateHashLookup() {
     }
 
     if (!stateField) {
-        console.log('⚠️ No state field found in allFields');
+        console.log('️ No state field found in allFields');
         console.log(`   allFields.length = ${allFields.length}`);
         if (allFields.length > 0) {
             console.log(`   First 10 field keys: ${allFields.slice(0, 10).map(f => `"${f.key}"`).join(', ')}`);
@@ -197,7 +197,7 @@ async function buildStateHashLookup() {
 
     // If no state field found or it has no options, use US states as fallback
     if (!stateField || !stateField.options || stateField.options.length === 0) {
-        console.log('🔄 Using comprehensive US states list as fallback...');
+        console.log('� Using comprehensive US states list as fallback...');
         stateField = {
             key: 'state',
             label: 'State',
@@ -251,7 +251,7 @@ async function buildStateHashLookup() {
     // Show a few example hashes for debugging
     const exampleKeys = Object.keys(stateHashLookup).slice(0, 3);
     if (exampleKeys.length > 0) {
-        console.log('📝 Example state hash mappings:');
+        console.log('� Example state hash mappings:');
         exampleKeys.forEach(hash => {
             const entry = stateHashLookup[hash];
             console.log(`   ${hash.substring(0, 16)}... → ${entry.originalKey} (from "${entry.hashedVariant}")`);
@@ -678,7 +678,7 @@ async function parseWebform() {
             console.log(`   Sample field keys: ${allFields.slice(0, 5).map(f => f.key).join(', ')}`);
         }
     } else {
-        console.log('⚠️ webformData.fields is undefined or null');
+        console.log('️ webformData.fields is undefined or null');
     }
 
     // Build hash lookup AFTER parsing fields (needed for brute force decryption)
@@ -834,7 +834,7 @@ async function parseWebform() {
                                 inferred: true,
                                 decrypted: false
                             });
-                            console.log('✅ Inferred: CCPA = Country is US');
+                            console.log(' Inferred: CCPA = Country is US');
                         } else if (ruleName.toUpperCase().includes('LGPD')) {
                             ruleCriteria.push({
                                 field: 'country',
@@ -843,7 +843,7 @@ async function parseWebform() {
                                 inferred: true,
                                 decrypted: false
                             });
-                            console.log('✅ Inferred: LGPD = Country is Brazil');
+                            console.log(' Inferred: LGPD = Country is Brazil');
                         } else if (ruleName.toUpperCase().includes('GDPR')) {
                             ruleCriteria.push({
                                 field: 'country',
@@ -852,7 +852,7 @@ async function parseWebform() {
                                 inferred: true,
                                 decrypted: false
                             });
-                            console.log('✅ Inferred: GDPR = Country is EU member state');
+                            console.log(' Inferred: GDPR = Country is EU member state');
                         } else {
                             // Unknown encrypted workflow - mark as such
                             ruleCriteria.push({
@@ -862,7 +862,7 @@ async function parseWebform() {
                                 inferred: false,
                                 decrypted: false
                             });
-                            console.log('❌ Could not decrypt or infer criteria');
+                            console.log(' Could not decrypt or infer criteria');
                         }
                     }
                     // Skip normal parsing for hashed workflows - we already handled them
@@ -1550,7 +1550,7 @@ function evaluateWorkflowRule(workflow) {
 
 // Smart Workflow Analysis: Analyzes workflow rules to identify decision dimensions
 function analyzeWorkflowDimensions() {
-    console.log('🔍 Analyzing workflow dimensions...');
+    console.log('� Analyzing workflow dimensions...');
     const criteriaMap = {};
 
     // Extract all criteria fields from all workflows
@@ -1581,13 +1581,13 @@ function analyzeWorkflowDimensions() {
         crit.values = Array.from(crit.values);
     });
 
-    console.log('📊 Criteria found:', Object.keys(criteriaMap).join(', '));
+    console.log('� Criteria found:', Object.keys(criteriaMap).join(', '));
     return criteriaMap;
 }
 
 // Rank dimensions by importance (workflow frequency)
 function rankDimensions(criteriaMap, topN = 3) {
-    console.log('📈 Ranking dimensions by importance...');
+    console.log('� Ranking dimensions by importance...');
 
     const ranked = Object.values(criteriaMap)
         .sort((a, b) => b.workflows.length - a.workflows.length)
@@ -1603,7 +1603,7 @@ function rankDimensions(criteriaMap, topN = 3) {
 
 // Build dynamic coverage matrix based on actual workflow dimensions
 function buildDynamicCoverageMatrix() {
-    console.log('🎯 Building dynamic coverage matrix...');
+    console.log('� Building dynamic coverage matrix...');
 
     // Step 1: Analyze what workflows actually care about
     const criteriaMap = analyzeWorkflowDimensions();
@@ -1638,6 +1638,9 @@ function buildDynamicCoverageMatrix() {
     const stats = { total: 0, covered: 0, gaps: 0 };
 
     dim1.values.forEach(val1 => {
+        // Check if this row's dimension is visible
+        const row1Visible = isCombinationVisible([dim1.field], [val1]);
+
         const row = {
             value: val1,
             label: getOptionLabel(val1) || val1,
@@ -1645,6 +1648,13 @@ function buildDynamicCoverageMatrix() {
         };
 
         dim2.values.forEach(val2 => {
+            // Check if this cell's combination is visible
+            const cellVisible = isCombinationVisible([dim1.field, dim2.field], [val1, val2]);
+            if (!cellVisible) {
+                // Skip cells that visibility rules prevent
+                return;
+            }
+
             // Test if any workflow triggers for this combination
             const triggeredWorkflows = workflowRules.filter(workflow => {
                 if (!workflow.ruleCriteria) return false;
@@ -1673,7 +1683,10 @@ function buildDynamicCoverageMatrix() {
             }
         });
 
-        matrix.push(row);
+        // Only add row if it has cells
+        if (row.cells.length > 0) {
+            matrix.push(row);
+        }
     });
 
     stats.coverage = ((stats.covered / stats.total) * 100).toFixed(1);
@@ -1687,14 +1700,73 @@ function buildDynamicCoverageMatrix() {
     };
 }
 
+// Check if a dimension combination is actually visible (not prevented by visibility rules)
+function isCombinationVisible(dimensionFields, dimensionValues) {
+    // Create a mock selection with the given dimension values
+    const mockSelections = {};
+
+    // Set the dimension values
+    dimensionFields.forEach((field, idx) => {
+        mockSelections[field] = dimensionValues[idx];
+    });
+
+    // Check if both dimension fields are visible with these selections
+    for (let i = 0; i < dimensionFields.length; i++) {
+        const field = allFields.find(f => f.key === dimensionFields[i]);
+        if (!field) {
+            // Field doesn't exist, assume it's visible
+            continue;
+        }
+
+        // If field has no visibility rules, it's always visible
+        if (!field.visibilityRules || !field.visibilityRules.rules) {
+            continue;
+        }
+
+        // Check if any visibility rule would show this field
+        const rules = field.visibilityRules.rules;
+        let isVisible = false;
+
+        for (let rule of rules) {
+            // Temporarily set currentSelections for evaluateRule
+            const originalSelections = Object.assign({}, currentSelections);
+            Object.assign(currentSelections, mockSelections);
+
+            const ruleResult = evaluateRule(rule);
+
+            // Restore original selections
+            Object.assign(currentSelections, originalSelections);
+
+            if (ruleResult) {
+                isVisible = true;
+                break;
+            }
+        }
+
+        // If this dimension field is not visible, the combination is not valid
+        if (!isVisible) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 // Build single dimension view (when workflows only use one criteria field)
 function buildSingleDimensionView(dimension, criteriaMap) {
-    console.log(`📊 Building single dimension view for: ${dimension.label}`);
+    console.log(`Building single dimension view for: ${dimension.label}`);
 
     const stats = { total: 0, covered: 0, gaps: 0 };
     const items = [];
 
     dimension.values.forEach(val => {
+        // Check if this combination is actually visible (not blocked by visibility rules)
+        const isVisible = isCombinationVisible([dimension.field], [val]);
+        if (!isVisible) {
+            // Skip combinations that visibility rules prevent
+            return;
+        }
+
         // Test if any workflow triggers for this value
         const triggeredWorkflows = workflowRules.filter(workflow => {
             if (!workflow.ruleCriteria) return false;
@@ -1738,7 +1810,7 @@ function evaluateDimensionMatch(workflow, dimensionField, dimensionValue) {
 
 // Generate Smart Coverage Diagram
 function generateSmartCoverageDiagram() {
-    console.log('📊 Generating smart coverage diagram...');
+    console.log('� Generating smart coverage diagram...');
 
     const coverageData = buildDynamicCoverageMatrix();
     if (!coverageData) return;
@@ -1767,7 +1839,7 @@ function buildSingleDimensionDiagramHTML(coverageData) {
     let itemsHtml = '';
     matrix.forEach((item, idx) => {
         const itemClass = item.covered ? 'item-covered' : 'item-gap';
-        const emoji = item.covered ? '✅' : '❌';
+        const status = item.covered ? '[Covered]' : '[Gap]';
         const dropdownId = 'dropdown-item-' + idx;
 
         let workflowsHtml = '<div class="workflow-dropdown" id="' + dropdownId + '" style="display:none; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.1);">';
@@ -1782,7 +1854,7 @@ function buildSingleDimensionDiagramHTML(coverageData) {
 
         itemsHtml += '<div class="item-card ' + itemClass + '" onclick="toggleWorkflows(\'' + dropdownId + '\')" style="cursor: pointer;">' +
             '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">' +
-            '<strong style="font-size: 1.1rem;">' + emoji + ' ' + item.label + '</strong>' +
+            '<strong style="font-size: 1.1rem;">' + item.label + '</strong>' +
             '<span style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">' + item.workflowCount + ' workflow' + (item.workflowCount !== 1 ? 's' : '') + '</span>' +
             '</div>' +
             workflowsHtml +
@@ -1812,7 +1884,7 @@ function buildSingleDimensionDiagramHTML(coverageData) {
         '@media print { body { background: white; } .print-button { display: none; } }' +
         '</style></head><body><div class="container">' +
         '<div class="header">' +
-        '<h1>📊 Smart Coverage Analysis <span class="method-tag">Single Dimension</span></h1>' +
+        '<h1>Smart Coverage Analysis <span class="method-tag">Single Dimension</span></h1>' +
         '<p><strong>Form:</strong> ' + templateName + '</p>' +
         '<p><strong>Generated:</strong> ' + timestamp + '</p>' +
         '<p><strong>Analysis:</strong> Workflows use a single decision criterion: <strong>' + (dimension.label || dimension.field) + '</strong></p>' +
@@ -1825,12 +1897,12 @@ function buildSingleDimensionDiagramHTML(coverageData) {
         '<div class="stat-card"><div class="stat-label">Coverage</div><div class="stat-value" style="color: #9b59b6;">' + stats.coverage + '%</div></div>' +
         '</div>' +
         '<div class="dimension-info">' +
-        '<div class="dimension-title">📋 Decision Criterion</div>' +
+        '<div class="dimension-title">Decision Criterion</div>' +
         '<p style="font-size: 0.9rem; color: #7f8c8d;">' + (dimension.label || dimension.field) + ' - Used by ' + dimension.workflows.length + ' workflow' + (dimension.workflows.length !== 1 ? 's' : '') + '</p>' +
         '</div>' +
         '<div class="items-container">' + itemsHtml + '</div>' +
         '<div style="padding: 1.5rem; background: #f8f9fa; border-left: 4px solid #9b59b6; border-radius: 8px;">' +
-        '<h3 style="color: #2c3e50; margin-bottom: 1rem;">💡 What This Shows</h3>' +
+        '<h3 style="color: #2c3e50; margin-bottom: 1rem;">What This Shows</h3>' +
         '<ul style="margin-left: 1.5rem; line-height: 1.8; color: #555;">' +
         '<li><strong>Green cards (✅):</strong> Workflow exists for this value</li>' +
         '<li><strong>Red cards (❌):</strong> Gap - no workflow for this value</li>' +
@@ -1867,7 +1939,6 @@ function buildSmartDiagramHTML(coverageData) {
     const tableRows = matrix.map(row => {
         const cells = row.cells.map(cell => {
             const cellClass = cell.covered ? 'cell-covered' : 'cell-gap';
-            const emoji = cell.covered ? '✅' : '❌';
             const cellIdStr = 'cell-' + (cellId++);
             const dropdownId = 'dropdown-' + cellIdStr;
 
@@ -1885,7 +1956,7 @@ function buildSmartDiagramHTML(coverageData) {
 
             // Make clickable if there are workflows or it's a gap
             const clickableAttr = ' onclick="toggleWorkflows(\'' + dropdownId + '\')" style="cursor: pointer;"';
-            const summary = '<strong>' + emoji + ' ' + cell.workflowCount + '</strong><br><small>' + (cell.workflowCount === 1 ? 'workflow' : 'workflows') + '</small>' + (cell.workflows.length > 1 ? '<br><small style="color: #9b59b6; font-weight: 500;">Click to expand</small>' : '');
+            const summary = '<strong>' + cell.workflowCount + '</strong><br><small>' + (cell.workflowCount === 1 ? 'workflow' : 'workflows') + '</small>' + (cell.workflows.length > 1 ? '<br><small style="color: #9b59b6; font-weight: 500;">Click to expand</small>' : '');
 
             return '<td id="' + cellIdStr + '" class="' + cellClass + '"' + clickableAttr + '>' + summary + workflowsHtml + '</td>';
         }).join('');
@@ -1919,12 +1990,12 @@ function buildSmartDiagramHTML(coverageData) {
         '@media print { body { background: white; } .print-button { display: none; } }' +
         '</style></head><body><div class="container">' +
         '<div class="header">' +
-        '<h1>📊 Smart Coverage Analysis <span class="method-tag">Workflow-Driven</span></h1>' +
+        '<h1>Smart Coverage Analysis <span class="method-tag">Workflow-Driven</span></h1>' +
         '<p><strong>Form:</strong> ' + templateName + '</p>' +
         '<p><strong>Generated:</strong> ' + timestamp + '</p>' +
         '<p><strong>Analysis Method:</strong> Analyzed workflow rules to identify primary decision dimensions</p>' +
         '</div>' +
-        '<button class="print-button" onclick="window.print()">🖨️ Print / Save as PDF</button>' +
+        '<button class="print-button" onclick="window.print()">Print / Save as PDF</button>' +
         '<div class="stats">' +
         '<div class="stat-card"><div class="stat-label">Total Combinations</div><div class="stat-value">' + stats.total + '</div></div>' +
         '<div class="stat-card"><div class="stat-label">Covered</div><div class="stat-value" style="color: #27ae60;">' + stats.covered + '</div></div>' +
@@ -1932,7 +2003,7 @@ function buildSmartDiagramHTML(coverageData) {
         '<div class="stat-card"><div class="stat-label">Coverage</div><div class="stat-value" style="color: #9b59b6;">' + stats.coverage + '%</div></div>' +
         '</div>' +
         '<div class="dimension-info">' +
-        '<div class="dimension-title">📈 Analysis Dimensions (derived from workflow rules)</div>' +
+        '<div class="dimension-title">Analysis Dimensions (derived from workflow rules)</div>' +
         '<p style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 1rem;">These dimensions were automatically identified as the most important for workflow routing:</p>' +
         '<div class="dimension-list">' +
         '<div class="dimension-item"><strong>Primary:</strong> ' + (dim1.label || dim1.field) + '<br><small>' + dim1.workflows.length + ' workflows use this</small></div>' +
@@ -1942,7 +2013,7 @@ function buildSmartDiagramHTML(coverageData) {
         '<table><thead><tr><th style="text-align: left;">' + (dim1.label || dim1.field) + ' / ' + (dim2.label || dim2.field) + ' →</th>' + headerCols + '</tr></thead>' +
         '<tbody>' + tableRows + '</tbody></table></div>' +
         '<div style="margin-top: 3rem; padding: 1.5rem; background: #f8f9fa; border-left: 4px solid #9b59b6; border-radius: 8px;">' +
-        '<h3 style="color: #2c3e50; margin-bottom: 1rem;">💡 What This Shows</h3>' +
+        '<h3 style="color: #2c3e50; margin-bottom: 1rem;">What This Shows</h3>' +
         '<ul style="margin-left: 1.5rem; line-height: 1.8; color: #555;">' +
         '<li><strong>Green cells (✅):</strong> Workflow exists to handle this combination</li>' +
         '<li><strong>Red cells (❌):</strong> Gap - no workflow configured for this combination</li>' +
@@ -1966,7 +2037,7 @@ function buildSmartDiagramHTML(coverageData) {
 
 // Coverage Matrix Diagram: Visual representation for customer discussion
 function generateCoverageMatrix() {
-    console.log('📊 Generating coverage matrix diagram...');
+    console.log('� Generating coverage matrix diagram...');
 
     // Extract subject types and request types
     const subjectTypes = (webformData.webFormDto?.subjectTypes || [])
@@ -2090,7 +2161,7 @@ function calculateGaps(matrix) {
 
 // Gap Detection System: Finds combinations of WHO+WHAT that don't trigger workflows
 function detectWorkflowGaps() {
-    console.log('🔍 Gap Detection starting...');
+    console.log('� Gap Detection starting...');
     console.log('webformData:', !!webformData);
     console.log('allFields:', allFields.length, 'fields loaded');
     console.log('workflowRules:', workflowRules.length, 'workflows loaded');
@@ -2202,7 +2273,7 @@ function detectWorkflowGaps() {
 
 // Export gap analysis results
 function exportGapAnalysis() {
-    console.log('📊 exportGapAnalysis() called');
+    console.log('� exportGapAnalysis() called');
     const gapAnalysis = detectWorkflowGaps();
     console.log('Gap analysis results:', gapAnalysis);
 
