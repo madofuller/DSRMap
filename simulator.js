@@ -264,8 +264,8 @@ function isLikelyCountryField(field) {
     const fieldKey = (field.key || '').toLowerCase();
     const label = (field.label || '').toLowerCase();
 
-    // Check if field name/label contains "country"
-    return fieldKey.includes('country') || label.includes('country');
+    // Check if field name/label contains "country" or "residence" (common in country fields)
+    return fieldKey.includes('country') || label.includes('country') || label.includes('residence');
 }
 
 function isLikelyUSStatesField(field) {
@@ -635,6 +635,24 @@ async function parseWebform() {
     if (webformData.fields) {
         console.log(`📝 Parsing ${webformData.fields.length} fields...`);
         webformData.fields.forEach(field => {
+            let options = field.options || [];
+            
+            // Sort country field options alphabetically when first loaded
+            const fieldKey = field.fieldKey || '';
+            const fieldLabel = getFieldLabel(fieldKey) || '';
+            const isCountryField = fieldKey.toLowerCase().includes('country') || 
+                                   fieldLabel.toLowerCase().includes('country') ||
+                                   fieldLabel.toLowerCase().includes('residence');
+            
+            if (isCountryField && options.length > 0) {
+                options = [...options].sort((a, b) => {
+                    const labelA = (a.value || getOptionLabel(a.key) || a.key || '').trim().toLowerCase();
+                    const labelB = (b.value || getOptionLabel(b.key) || b.key || '').trim().toLowerCase();
+                    return labelA.localeCompare(labelB, undefined, { sensitivity: 'base' });
+                });
+                console.log(`🔤 Pre-sorted ${options.length} country options for field "${fieldKey}"`);
+            }
+            
             allFields.push({
                 key: field.fieldKey,
                 label: getFieldLabel(field.fieldKey),
@@ -643,7 +661,7 @@ async function parseWebform() {
                 isRequired: field.isRequired,
                 hasVisibilityRule: field.hasVisibilityRule,
                 visibilityRules: field.visibilityRules,
-                options: field.options || [],
+                options: options,
                 isMasked: field.isMasked,
                 status: field.status,
                 isSelected: field.isSelected
@@ -1088,6 +1106,16 @@ function renderField(field) {
 
         // Use dropdown for many options
         if (availableOptions.length > 10) {
+            // Sort options alphabetically for country fields
+            const isCountryField = isLikelyCountryField(field);
+            if (isCountryField && availableOptions.length > 0) {
+                availableOptions = [...availableOptions].sort((a, b) => {
+                    const labelA = (a.value || getOptionLabel(a.key) || a.key || '').trim().toLowerCase();
+                    const labelB = (b.value || getOptionLabel(b.key) || b.key || '').trim().toLowerCase();
+                    return labelA.localeCompare(labelB, undefined, { sensitivity: 'base' });
+                });
+            }
+            
             return `
                 <div class="form-field">
                     <label class="form-label">${field.label}${required}${inactiveBadge}</label>
@@ -1176,6 +1204,19 @@ function renderField(field) {
                     </div>
                 </div>
             `;
+        }
+
+        // Sort options alphabetically by display name (especially important for country fields)
+        const isCountryField = isLikelyCountryField(field);
+        if (isCountryField && options.length > 0) {
+            // Create a sorted copy to avoid mutating the original
+            const originalCount = options.length;
+            options = [...options].sort((a, b) => {
+                const labelA = (a.value || getOptionLabel(a.key) || a.key || '').trim().toLowerCase();
+                const labelB = (b.value || getOptionLabel(b.key) || b.key || '').trim().toLowerCase();
+                return labelA.localeCompare(labelB, undefined, { sensitivity: 'base' });
+            });
+            console.log(`🔤 Sorted ${originalCount} country options alphabetically for field "${field.key}"`);
         }
 
         // Render select with options
