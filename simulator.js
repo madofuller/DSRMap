@@ -1484,6 +1484,23 @@ function updateTextInput(fieldKey, value) {
 function evaluateWorkflows() {
     const workflowList = document.getElementById('workflowList');
     const formActionsDiv = document.getElementById('formActions');
+    const workflowSection = workflowList?.closest('.simulator-section');
+
+    // Check if any selections have been made
+    const hasSelections = Object.keys(currentSelections).length > 0;
+
+    // Hide the entire workflow section if no selections have been made
+    if (!hasSelections) {
+        if (workflowSection) {
+            workflowSection.style.display = 'none';
+        }
+        return;
+    }
+
+    // Show the workflow section once selections are made
+    if (workflowSection) {
+        workflowSection.style.display = 'block';
+    }
 
     // Evaluate all workflows and score them
     const scoredWorkflows = [];
@@ -1925,21 +1942,7 @@ function buildDynamicCoverageMatrix() {
             };
         });
     }
-    
-    // Debug: Check if dimensions have values
 
-        field: dim1.field,
-        valuesCount: dim1.values ? dim1.values.length : 0,
-        hasValueStats: !!dim1.valueStats,
-        valueStatsCount: dim1.valueStats ? dim1.valueStats.length : 0
-    });
-
-        field: dim2.field,
-        valuesCount: dim2.values ? dim2.values.length : 0,
-        hasValueStats: !!dim2.valueStats,
-        valueStatsCount: dim2.valueStats ? dim2.valueStats.length : 0
-    });
-    
     const dim1Values = filterImportantValues(dim1, true);
     const dim2Values = filterImportantValues(dim2, true);
     
