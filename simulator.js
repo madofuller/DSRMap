@@ -24,7 +24,7 @@ async function sha512(str) {
 
 // Build lookup table for country hashes
 async function buildCountryHashLookup() {
-    console.log('� Building country hash lookup table...');
+
     countryHashLookup = {}; // Reset lookup table
 
     // Find the country field - try multiple strategies
@@ -42,13 +42,13 @@ async function buildCountryHashLookup() {
 
     if (!countryField) {
         console.warn('⚠️ No country field found in allFields');
-        console.log(`   allFields.length = ${allFields.length}`);
+
         if (allFields.length > 0) {
-            console.log(`   First 10 field keys: ${allFields.slice(0, 10).map(f => `"${f.key}"`).join(', ')}`);
+
             // Also check for any field with 'country' in the key
             const fieldsWithCountry = allFields.filter(f => f.key && f.key.toLowerCase().includes('country'));
             if (fieldsWithCountry.length > 0) {
-                console.log(`   Found ${fieldsWithCountry.length} field(s) with 'country' in key: ${fieldsWithCountry.map(f => `"${f.key}"`).join(', ')}`);
+
             }
         } else {
             console.warn('   allFields is empty! Fields may not have been parsed yet.');
@@ -56,13 +56,13 @@ async function buildCountryHashLookup() {
         
         // FALLBACK: Try to find country field directly in webformData.fields
         if (webformData && webformData.fields) {
-            console.log('   🔄 Trying fallback: checking webformData.fields directly...');
+
             const rawCountryField = webformData.fields.find(f => 
                 f.fieldKey === 'country' || 
                 (f.fieldKey && f.fieldKey.toLowerCase().includes('country'))
             );
             if (rawCountryField && rawCountryField.options && rawCountryField.options.length > 0) {
-                console.log(`   ✅ Found country field in webformData.fields: "${rawCountryField.fieldKey}" with ${rawCountryField.options.length} options`);
+
                 // Use this field directly
                 countryField = {
                     key: rawCountryField.fieldKey,
@@ -80,40 +80,34 @@ async function buildCountryHashLookup() {
     }
 
     if (!countryField.options || countryField.options.length === 0) {
-        console.log('️ Country field found but has no options in JSON');
-        console.log('Country field key:', countryField.key);
-        console.log('Country field label:', countryField.label);
-        console.log('Country field type:', countryField.type);
-        console.log('� Using comprehensive ISO country list as fallback...');
+
+
+
+
+
         
         // Use comprehensive country list as fallback
         countryField.options = getWorldCountriesOptions();
-        console.log(`✅ Using fallback list with ${countryField.options.length} countries`);
+
     }
 
-    console.log(`📋 Found country field "${countryField.key}" (${countryField.label}) with ${countryField.options.length} options`);
 
-    // Hash all possible country values
+
+    // Hash country values - OneTrust hashes the exact country code or name
     let hashCount = 0;
     const processedOptions = [];
-    
+
     for (const option of countryField.options) {
-        const key = option.key;
-        const value = option.value;
+        const key = option.key; // Usually 2-letter ISO code like "US", "BR"
+        const value = option.value; // Full country name like "United States", "Brazil"
         processedOptions.push(`${key} (${value})`);
 
-        // Try multiple variations (lowercase seems to be what OneTrust uses)
-        const variations = [
-            key,
-            key.toLowerCase(),
-            key.toUpperCase(),
-            value,
-            value.toLowerCase(),
-            value.toUpperCase()
-        ];
+        // Hash both the key (country code) and value (country name)
+        // OneTrust uses the country code for some and country name for others
+        const variants = [key, value];
 
-        for (const variant of variations) {
-            if (variant) { // Skip empty/null variants
+        for (const variant of variants) {
+            if (variant) {
                 const hash = await sha512(variant);
                 countryHashLookup[hash] = {
                     originalKey: key,
@@ -125,25 +119,62 @@ async function buildCountryHashLookup() {
         }
     }
     
-    console.log(`📝 Processing ${processedOptions.length} country options: ${processedOptions.slice(0, 5).join(', ')}${processedOptions.length > 5 ? '...' : ''}`);
 
-    console.log(`✅ Built hash lookup with ${Object.keys(countryHashLookup).length} unique hashes from ${hashCount} variations`);
+
+
     
     // Show a few example hashes for debugging
     const exampleKeys = Object.keys(countryHashLookup).slice(0, 3);
     if (exampleKeys.length > 0) {
-        console.log('� Example hash mappings:');
+
         exampleKeys.forEach(hash => {
             const entry = countryHashLookup[hash];
-            console.log(`   ${hash.substring(0, 16)}... → ${entry.originalKey} (from "${entry.hashedVariant}")`);
+
         });
+    }
+}
+
+// Load state hash mappings from CSV file
+async function loadStateHashMappingsFromCSV() {
+
+    try {
+        const response = await fetch('state_hash_mapping.csv');
+        if (!response.ok) {
+
+            return false;
+        }
+        const csvText = await response.text();
+        const lines = csvText.split('\n').filter(line => line.trim() && !line.startsWith('State Name'));
+        
+        let loadedCount = 0;
+        for (const line of lines) {
+            const [stateName, stateHash] = line.split(',').map(s => s.trim());
+            if (stateName && stateHash && stateHash.length === 128) {
+                stateHashLookup[stateHash] = {
+                    originalKey: stateName.replace(/\s+/g, ''),
+                    originalValue: stateName,
+                    originalAbbrev: null, // Will be filled in if we find it
+                    hashedVariant: stateName
+                };
+                loadedCount++;
+            }
+        }
+        
+
+        return loadedCount > 0;
+    } catch (error) {
+
+        return false;
     }
 }
 
 // Build lookup table for state hashes
 async function buildStateHashLookup() {
-    console.log('� Building state hash lookup table...');
+
     stateHashLookup = {}; // Reset lookup table
+
+    // First, try to load from CSV file
+    const csvLoaded = await loadStateHashMappingsFromCSV();
 
     // Find the state field - try multiple strategies
     let stateField = allFields.find(f => f.key === 'state');
@@ -159,14 +190,14 @@ async function buildStateHashLookup() {
     }
 
     if (!stateField) {
-        console.log('️ No state field found in allFields');
-        console.log(`   allFields.length = ${allFields.length}`);
+
+
         if (allFields.length > 0) {
-            console.log(`   First 10 field keys: ${allFields.slice(0, 10).map(f => `"${f.key}"`).join(', ')}`);
+
             // Also check for any field with 'state' in the key
             const fieldsWithState = allFields.filter(f => f.key && f.key.toLowerCase().includes('state'));
             if (fieldsWithState.length > 0) {
-                console.log(`   Found ${fieldsWithState.length} field(s) with 'state' in key: ${fieldsWithState.map(f => `"${f.key}"`).join(', ')}`);
+
             }
         } else {
             console.warn('   allFields is empty! Fields may not have been parsed yet.');
@@ -174,13 +205,13 @@ async function buildStateHashLookup() {
         
         // FALLBACK: Try to find state field directly in webformData.fields
         if (webformData && webformData.fields) {
-            console.log('   🔄 Trying fallback: checking webformData.fields directly...');
+
             const rawStateField = webformData.fields.find(f => 
                 f.fieldKey === 'state' || 
                 (f.fieldKey && f.fieldKey.toLowerCase().includes('state'))
             );
             if (rawStateField && rawStateField.options && rawStateField.options.length > 0) {
-                console.log(`   ✅ Found state field in webformData.fields: "${rawStateField.fieldKey}" with ${rawStateField.options.length} options`);
+
                 // Use this field directly
                 stateField = {
                     key: rawStateField.fieldKey,
@@ -188,87 +219,82 @@ async function buildStateHashLookup() {
                     options: rawStateField.options || []
                 };
             } else {
-                console.log('   ℹ️ State field not found in webformData.fields - will use US states fallback');
+
             }
         } else {
-            console.log('   ℹ️ webformData.fields is not available - will use US states fallback');
+
         }
     }
 
     // If no state field found or it has no options, use US states as fallback
     if (!stateField || !stateField.options || stateField.options.length === 0) {
-        console.log('� Using comprehensive US states list as fallback...');
+
         stateField = {
             key: 'state',
             label: 'State',
             options: getUSStatesOptions()
         };
-        console.log(`✅ Using fallback list with ${stateField.options.length} states`);
+
     } else {
-        console.log(`📋 Found state field "${stateField.key}" (${stateField.label}) with ${stateField.options.length} options`);
+
     }
 
-    // Hash all possible state values
+    // If CSV was loaded, enhance entries with abbreviations from state field
+    // Otherwise, generate hashes from state field
     let hashCount = 0;
     const processedOptions = [];
-    
-    for (const option of stateField.options) {
-        const key = option.key;
-        const value = option.value;
-        const abbrev = option.abbrev; // State abbreviation (e.g., "CA")
-        processedOptions.push(`${key} (${value})${abbrev ? ` [${abbrev}]` : ''}`);
 
-        // Build variations array - include both abbreviation and full name
-        const variations = [];
-        
-        // Add abbreviation variations if available
-        if (abbrev) {
-            variations.push(
-                abbrev,              // "CA"
-                abbrev.toLowerCase(), // "ca"
-                abbrev.toUpperCase()  // "CA" (same, but explicit)
-            );
+    if (csvLoaded) {
+        // CSV already loaded - just add abbreviations if we can match them
+
+        for (const option of stateField.options) {
+            const value = option.value;
+            const abbrev = option.abbrev;
+            
+            // Find matching entry in lookup by state name
+            const matchingHash = Object.keys(stateHashLookup).find(hash => {
+                const entry = stateHashLookup[hash];
+                return entry.originalValue === value || entry.originalValue === option.key;
+            });
+            
+            if (matchingHash && abbrev) {
+                stateHashLookup[matchingHash].originalAbbrev = abbrev;
+            }
         }
-        
-        // Add full name variations
-        variations.push(
-            value,                   // "California"
-            value.toLowerCase(),     // "california"
-            value.toUpperCase(),     // "CALIFORNIA"
-            key,                     // "California" (spaces removed)
-            key.toLowerCase(),       // "california"
-            key.toUpperCase(),       // "CALIFORNIA"
-            value.replace(/\s+/g, ''), // "California" (spaces removed)
-            value.replace(/\s+/g, '').toLowerCase(), // "california"
-            value.replace(/\s+/g, '').toUpperCase()  // "CALIFORNIA"
-        );
+        hashCount = Object.keys(stateHashLookup).length;
+    } else {
+        // Generate hashes from state field
+        for (const option of stateField.options) {
+            const key = option.key;
+            const value = option.value; // e.g., "California", "New York"
+            const abbrev = option.abbrev; // State abbreviation (e.g., "CA")
+            processedOptions.push(`${value}${abbrev ? ` [${abbrev}]` : ''}`);
 
-        // Hash all variations
-        for (const variant of variations) {
-            if (variant) { // Skip empty/null variants
-                const hash = await sha512(variant);
+            // OneTrust hashes the exact state name (e.g., "California")
+            if (value) {
+                const hash = await sha512(value);
                 stateHashLookup[hash] = {
                     originalKey: key,
                     originalValue: value,
                     originalAbbrev: abbrev || null,
-                    hashedVariant: variant
+                    hashedVariant: value
                 };
                 hashCount++;
             }
         }
     }
     
-    console.log(`📝 Processing ${processedOptions.length} state options: ${processedOptions.slice(0, 5).join(', ')}${processedOptions.length > 5 ? '...' : ''}`);
 
-    console.log(`✅ Built state hash lookup with ${Object.keys(stateHashLookup).length} unique hashes from ${hashCount} variations`);
+
+
     
     // Show a few example hashes for debugging
     const exampleKeys = Object.keys(stateHashLookup).slice(0, 3);
     if (exampleKeys.length > 0) {
-        console.log('� Example state hash mappings:');
+
         exampleKeys.forEach(hash => {
             const entry = stateHashLookup[hash];
-            console.log(`   ${hash.substring(0, 16)}... → ${entry.originalKey} (from "${entry.hashedVariant}")`);
+
         });
     }
 }
@@ -512,7 +538,7 @@ function setupEventListeners() {
         console.error('File input element not found! Make sure id="fileInput" exists in HTML.');
         return;
     }
-    console.log('File input found, setting up event listener');
+
     fileInput.addEventListener('change', handleFileSelect);
     
     // Also support drag and drop
@@ -531,7 +557,7 @@ function setupEventListeners() {
             uploadArea.style.background = '';
             const files = e.dataTransfer.files;
             if (files.length > 0) {
-                console.log('File dropped:', files[0].name);
+
                 processFile(files[0]);
             }
         });
@@ -557,40 +583,40 @@ async function loadTranslations() {
 function handleFileSelect(event) {
     const file = event.target.files[0];
     if (file) {
-        console.log('File selected:', file.name, file.size, 'bytes');
+
         processFile(file);
     } else {
-        console.log('No file selected');
+
     }
 }
 
 function processFile(file) {
-    console.log('Processing file:', file.name);
+
     const reader = new FileReader();
     
     reader.onload = async (e) => {
         try {
-            console.log('File read successfully, parsing JSON...');
+
             const jsonData = JSON.parse(e.target.result);
-            console.log('JSON parsed successfully');
+
 
             // Normalize webform data - handle both old and new formats
             // Old format: data wrapped in "webformData"
             // New format: data at root level
             if (jsonData.webformData) {
                 webformData = jsonData.webformData;
-                console.log('Using old format (webformData wrapper)');
+
             } else {
                 // New format - data is already at root level
                 webformData = jsonData;
-                console.log('Using new format (root level)');
+
             }
 
-            console.log('Parsing webform...');
+
             await parseWebform();
-            console.log('Starting simulator...');
+
             startSimulator();
-            console.log('Simulator started successfully!');
+
         } catch (error) {
             console.error('Error parsing JSON:', error);
             console.error('Error stack:', error.stack);
@@ -606,11 +632,11 @@ function processFile(file) {
     reader.onprogress = (e) => {
         if (e.lengthComputable) {
             const percentLoaded = Math.round((e.loaded / e.total) * 100);
-            console.log(`Loading file: ${percentLoaded}%`);
+
         }
     };
     
-    console.log('Starting to read file...');
+
     reader.readAsText(file);
 }
 
@@ -690,7 +716,7 @@ async function parseWebform() {
 
     // Parse fields
     if (webformData.fields) {
-        console.log(`📝 Parsing ${webformData.fields.length} fields...`);
+
         webformData.fields.forEach(field => {
             let options = field.options || [];
             
@@ -707,7 +733,7 @@ async function parseWebform() {
                     const labelB = (b.value || getOptionLabel(b.key) || b.key || '').trim().toLowerCase();
                     return labelA.localeCompare(labelB, undefined, { sensitivity: 'base' });
                 });
-                console.log(`🔤 Pre-sorted ${options.length} country options for field "${fieldKey}"`);
+
             }
             
             allFields.push({
@@ -724,23 +750,23 @@ async function parseWebform() {
                 isSelected: field.isSelected
             });
         });
-        console.log(`✅ Parsed ${allFields.length} fields into allFields`);
+
         
         // Debug: Check if country field was added
         const countryFieldCheck = allFields.find(f => f.key === 'country');
         if (countryFieldCheck) {
-            console.log(`✅ Country field found in allFields: key="${countryFieldCheck.key}", options=${countryFieldCheck.options?.length || 0}`);
+
         } else {
-            console.log(`⚠️ Country field NOT found in allFields after parsing`);
-            console.log(`   Sample field keys: ${allFields.slice(0, 5).map(f => f.key).join(', ')}`);
+
+
         }
     } else {
-        console.log('️ webformData.fields is undefined or null');
+
     }
 
     // Build hash lookup AFTER parsing fields (needed for brute force decryption)
     // This must happen after allFields is populated so we can find the country/state fields
-    console.log(`🔍 About to build hash lookup. allFields.length = ${allFields.length}`);
+
     await buildCountryHashLookup();
     await buildStateHashLookup();
 
@@ -775,9 +801,9 @@ async function parseWebform() {
                 );
 
                 if (hasHashedCriteria) {
-                    console.log(`🔍 Workflow "${ruleName}" has hashed criteria - attempting brute force reversal...`);
-                    console.log(`   Country hash lookup table size: ${Object.keys(countryHashLookup).length} entries`);
-                    console.log(`   State hash lookup table size: ${Object.keys(stateHashLookup).length} entries`);
+
+
+
 
                     // Extract and reverse hashed values
                     const decryptedCountries = new Set();
@@ -787,7 +813,7 @@ async function parseWebform() {
 
                     conditionGroups.forEach((group, groupIdx) => {
                         const conditions = group.conditions || [];
-                        console.log(`   Processing condition group ${groupIdx + 1} with ${conditions.length} conditions`);
+
                         
                         conditions.forEach((condition, condIdx) => {
                             // Check if this is a hashed field (by name or by value format)
@@ -798,7 +824,7 @@ async function parseWebform() {
                                 const isCountryHash = condition.field && condition.field.toLowerCase().includes('country');
                                 const isStateHash = condition.field && condition.field.toLowerCase().includes('state');
                                 
-                                console.log(`   🔎 Found hashed condition ${condIdx + 1}: field="${condition.field}", value length=${condition.value?.length || 0}, type=${isCountryHash ? 'country' : isStateHash ? 'state' : 'unknown'}`);
+
                                 
                                 // Handle both single value and array of values
                                 const hashValues = Array.isArray(condition.value) ? condition.value : [condition.value];
@@ -806,7 +832,7 @@ async function parseWebform() {
                                 hashValues.forEach((hashValue, hashIdx) => {
                                     totalHashesChecked++;
                                     if (hashValue && typeof hashValue === 'string') {
-                                        console.log(`      Checking hash ${hashIdx + 1}: ${hashValue.substring(0, 16)}...`);
+
                                         
                                         let decrypted = null;
                                         let decryptedValue = null;
@@ -817,7 +843,7 @@ async function parseWebform() {
                                             decryptedValue = decrypted.originalKey || decrypted.originalValue;
                                             decryptedCountries.add(decryptedValue);
                                             hasDecryptedAny = true;
-                                            console.log(`      ✅ DECRYPTED COUNTRY: ${hashValue.substring(0, 16)}... → ${decryptedValue} (from "${decrypted.hashedVariant}")`);
+
                                         }
                                         // Try state hash lookup
                                         else if (isStateHash && stateHashLookup[hashValue]) {
@@ -825,7 +851,7 @@ async function parseWebform() {
                                             decryptedValue = decrypted.originalKey || decrypted.originalValue;
                                             decryptedStates.add(decryptedValue);
                                             hasDecryptedAny = true;
-                                            console.log(`      ✅ DECRYPTED STATE: ${hashValue.substring(0, 16)}... → ${decryptedValue} (from "${decrypted.hashedVariant}")`);
+
                                         }
                                         // Try both lookups if field type is unknown
                                         else if (!isCountryHash && !isStateHash) {
@@ -834,20 +860,20 @@ async function parseWebform() {
                                                 decryptedValue = decrypted.originalKey || decrypted.originalValue;
                                                 decryptedCountries.add(decryptedValue);
                                                 hasDecryptedAny = true;
-                                                console.log(`      ✅ DECRYPTED (as country): ${hashValue.substring(0, 16)}... → ${decryptedValue} (from "${decrypted.hashedVariant}")`);
+
                                             } else if (stateHashLookup[hashValue]) {
                                                 decrypted = stateHashLookup[hashValue];
                                                 decryptedValue = decrypted.originalKey || decrypted.originalValue;
                                                 decryptedStates.add(decryptedValue);
                                                 hasDecryptedAny = true;
-                                                console.log(`      ✅ DECRYPTED (as state): ${hashValue.substring(0, 16)}... → ${decryptedValue} (from "${decrypted.hashedVariant}")`);
+
                                             } else {
-                                                console.log(`      ⚠️ Hash not found in any lookup: ${hashValue.substring(0, 16)}... (checked ${Object.keys(countryHashLookup).length} country + ${Object.keys(stateHashLookup).length} state entries)`);
+
                                             }
                                         } else {
                                             // Hash not found in the expected lookup
                                             const lookupSize = isCountryHash ? Object.keys(countryHashLookup).length : Object.keys(stateHashLookup).length;
-                                            console.log(`      ⚠️ Hash not found in ${isCountryHash ? 'country' : 'state'} lookup: ${hashValue.substring(0, 16)}... (checked ${lookupSize} entries)`);
+
                                         }
                                     }
                                 });
@@ -856,7 +882,7 @@ async function parseWebform() {
                     });
 
                     const totalDecrypted = decryptedCountries.size + decryptedStates.size;
-                    console.log(`   📊 Brute force results: checked ${totalHashesChecked} hash(es), decrypted ${decryptedCountries.size} country value(s), ${decryptedStates.size} state value(s)`);
+
 
                     // Track which hashes we found but couldn't decrypt
                     const undecryptedStateHashes = new Set();
@@ -905,7 +931,7 @@ async function parseWebform() {
                                 inferred: false,
                                 decrypted: true
                             });
-                            console.log(`✅ Successfully decrypted ${decryptedCountries.size} country value(s): ${Array.from(decryptedCountries).join(', ')}`);
+
                         }
                         if (decryptedStates.size > 0) {
                             ruleCriteria.push({
@@ -915,37 +941,35 @@ async function parseWebform() {
                                 inferred: false,
                                 decrypted: true
                             });
-                            console.log(`✅ Successfully decrypted ${decryptedStates.size} state value(s): ${Array.from(decryptedStates).join(', ')}`);
+
                         }
                     }
                     
-                    // Also add undecrypted hashes if any
+                    // Also add undecrypted hashes if any - keep full hashes so getOptionLabel() can decrypt them
                     if (undecryptedStateHashes.size > 0) {
                         ruleCriteria.push({
                             field: 'state',
-                            values: Array.from(undecryptedStateHashes).map(h => `[HASHED: ${h.substring(0, 16)}...]`),
+                            values: Array.from(undecryptedStateHashes),
                             isHashed: true,
                             inferred: false,
-                            decrypted: false,
-                            originalHashes: Array.from(undecryptedStateHashes)
+                            decrypted: false
                         });
-                        console.log(`⚠️ Found ${undecryptedStateHashes.size} undecrypted state hash(es)`);
+
                     }
                     if (undecryptedCountryHashes.size > 0) {
                         ruleCriteria.push({
                             field: 'country',
-                            values: Array.from(undecryptedCountryHashes).map(h => `[HASHED: ${h.substring(0, 16)}...]`),
+                            values: Array.from(undecryptedCountryHashes),
                             isHashed: true,
                             inferred: false,
-                            decrypted: false,
-                            originalHashes: Array.from(undecryptedCountryHashes)
+                            decrypted: false
                         });
-                        console.log(`⚠️ Found ${undecryptedCountryHashes.size} undecrypted country hash(es)`);
+
                     }
                     
                     if (!hasDecryptedAny && totalDecrypted === 0 && undecryptedStateHashes.size === 0 && undecryptedCountryHashes.size === 0) {
                         // Fallback: Try to infer from workflow name if brute force failed
-                        console.log(`⚠️ Brute force failed, falling back to workflow name inference...`);
+
                         if (ruleName.toUpperCase().includes('CCPA')) {
                             ruleCriteria.push({
                                 field: 'country',
@@ -954,7 +978,7 @@ async function parseWebform() {
                                 inferred: true,
                                 decrypted: false
                             });
-                            console.log(' Inferred: CCPA = Country is US');
+
                         } else if (ruleName.toUpperCase().includes('LGPD')) {
                             ruleCriteria.push({
                                 field: 'country',
@@ -963,7 +987,7 @@ async function parseWebform() {
                                 inferred: true,
                                 decrypted: false
                             });
-                            console.log(' Inferred: LGPD = Country is Brazil');
+
                         } else if (ruleName.toUpperCase().includes('GDPR')) {
                             ruleCriteria.push({
                                 field: 'country',
@@ -972,7 +996,7 @@ async function parseWebform() {
                                 inferred: true,
                                 decrypted: false
                             });
-                            console.log(' Inferred: GDPR = Country is EU member state');
+
                         } else {
                             // Unknown encrypted workflow - mark as such
                             ruleCriteria.push({
@@ -982,7 +1006,7 @@ async function parseWebform() {
                                 inferred: false,
                                 decrypted: false
                             });
-                            console.log(' Could not decrypt or infer criteria');
+
                         }
                     }
                     // Skip normal parsing for hashed workflows - we already handled them
@@ -1013,11 +1037,11 @@ async function parseWebform() {
                             if (isStateField && stateHashLookup[value]) {
                                 decrypted = stateHashLookup[value];
                                 value = decrypted.originalKey || decrypted.originalValue;
-                                console.log(`   🔓 Decrypted state hash in normal parsing: ${value}`);
+
                             } else if (isCountryField && countryHashLookup[value]) {
                                 decrypted = countryHashLookup[value];
                                 value = decrypted.originalKey || decrypted.originalValue;
-                                console.log(`   🔓 Decrypted country hash in normal parsing: ${value}`);
+
                             }
                             
                             // If we decrypted it, mark as originally hashed
@@ -1040,21 +1064,20 @@ async function parseWebform() {
                                 }
                                 return; // Skip normal processing for this condition
                             } else if (valueIsHash) {
-                                // Hash found but couldn't decrypt - mark as hashed
+                                // Hash found but couldn't decrypt - keep full hash so getOptionLabel() can decrypt it
                                 const existingCriteria = ruleCriteria.find(c => c.field === (isStateField ? 'state' : 'country'));
                                 if (existingCriteria) {
-                                    if (!existingCriteria.values.includes(`[HASHED: ${value.substring(0, 16)}...]`)) {
-                                        existingCriteria.values.push(`[HASHED: ${value.substring(0, 16)}...]`);
+                                    if (!existingCriteria.values.includes(value)) {
+                                        existingCriteria.values.push(value);
                                     }
                                     existingCriteria.isHashed = true;
                                     existingCriteria.decrypted = false;
                                 } else {
                                     ruleCriteria.push({
                                         field: isStateField ? 'state' : 'country',
-                                        values: [`[HASHED: ${value.substring(0, 16)}...]`],
+                                        values: [value],
                                         isHashed: true,
-                                        decrypted: false,
-                                        originalHashes: [value]
+                                        decrypted: false
                                     });
                                 }
                                 return; // Skip normal processing for this condition
@@ -1091,16 +1114,16 @@ async function parseWebform() {
         }
     }
 
-    console.log('Parsed:', allFields.length, 'fields,', workflowRules.length, 'workflows');
-    console.log('Workflow Settings:', workflowSettings);
-    console.log('Note: No default workflow - all workflows are rule-based');
+
+
+
 
     // Log workflow criteria for debugging
     workflowRules.forEach(wf => {
-        console.log(`Workflow: ${wf.ruleName}`);
-        console.log(`  Criteria count: ${wf.ruleCriteria.length}`);
+
+
         wf.ruleCriteria.forEach(c => {
-            console.log(`    ${c.field}: ${c.values.length} value(s)`);
+
         });
     });
 }
@@ -1146,7 +1169,7 @@ function calculateVisibleFields() {
         const isEnabled = field.isSelected === true && field.status !== 20;
 
         if (!isEnabled) {
-            console.log(`Field ${field.key} (${field.label}) - DISABLED (isSelected=${field.isSelected}, status=${field.status})`);
+
             // If showInactiveFields is true, add inactive fields to visibleFields but mark them as inactive
             if (showInactiveFields) {
                 visibleFields.add(field.key);
@@ -1157,20 +1180,20 @@ function calculateVisibleFields() {
         // Always show enabled fields without visibility rules
         if (!field.hasVisibilityRule) {
             visibleFields.add(field.key);
-            console.log(`Field ${field.key} (${field.label}) - NO visibility rule, always visible`);
+
             return;
         }
 
         // Evaluate visibility rules for enabled fields
         const rules = field.visibilityRules?.rules || [];
         if (rules.length === 0) {
-            console.log(`Field ${field.key} (${field.label}) - Has visibility rule flag but no rules, HIDDEN`);
+
             return;
         }
 
         for (let rule of rules) {
             const ruleResult = evaluateRule(rule);
-            console.log(`Field ${field.key} (${field.label}) - Rule "${rule.ruleName}": ${ruleResult ? 'SHOW' : 'HIDE'}`);
+
             if (ruleResult) {
                 visibleFields.add(field.key);
                 break;
@@ -1181,12 +1204,12 @@ function calculateVisibleFields() {
     // Check if fields disappeared - if so, clear their selections
     previousVisibleFields.forEach(fieldKey => {
         if (!visibleFields.has(fieldKey) && currentSelections[fieldKey]) {
-            console.log(`Field ${fieldKey} is no longer visible, clearing its selection`);
+
             delete currentSelections[fieldKey];
         }
     });
 
-    console.log('Total visible fields:', visibleFields.size);
+
 }
 
 function evaluateRule(rule) {
@@ -1251,7 +1274,7 @@ function renderFormFields() {
     );
 
     // Log for debugging
-    console.log('Visible fields:', fieldsToShow.map(f => ({ key: f.key, label: f.label, type: f.type })));
+
 
     formFields.innerHTML = fieldsToShow.map(field => renderField(field)).join('');
 }
@@ -1396,7 +1419,7 @@ function renderField(field) {
                 const labelB = (b.value || getOptionLabel(b.key) || b.key || '').trim().toLowerCase();
                 return labelA.localeCompare(labelB, undefined, { sensitivity: 'base' });
             });
-            console.log(`🔤 Sorted ${originalCount} country options alphabetically for field "${field.key}"`);
+
         }
 
         // Render select with options
@@ -1730,7 +1753,7 @@ function evaluateWorkflowRule(workflow) {
 
 // Smart Workflow Analysis: Analyzes workflow rules to identify decision dimensions
 function analyzeWorkflowDimensions() {
-    console.log('� Analyzing workflow dimensions...');
+
     const criteriaMap = {};
 
     // Extract all criteria fields from all workflows
@@ -1761,21 +1784,21 @@ function analyzeWorkflowDimensions() {
         crit.values = Array.from(crit.values);
     });
 
-    console.log('� Criteria found:', Object.keys(criteriaMap).join(', '));
+
     return criteriaMap;
 }
 
 // Rank dimensions by importance (workflow frequency)
 function rankDimensions(criteriaMap, topN = 3) {
-    console.log('� Ranking dimensions by importance...');
+
 
     const ranked = Object.values(criteriaMap)
         .sort((a, b) => b.workflows.length - a.workflows.length)
         .slice(0, topN);
 
-    console.log(`Top ${topN} dimensions:`);
+
     ranked.forEach((dim, idx) => {
-        console.log(`  ${idx + 1}. ${dim.label || dim.field} (${dim.workflows.length} workflows, ${dim.values.length} values)`);
+
     });
 
     return ranked;
@@ -1783,7 +1806,7 @@ function rankDimensions(criteriaMap, topN = 3) {
 
 // Build dynamic coverage matrix based on actual workflow dimensions
 function buildDynamicCoverageMatrix() {
-    console.log('� Building dynamic coverage matrix...');
+
 
     // Step 1: Analyze what workflows actually care about
     const analysis = analyzeWorkflowDimensions();
@@ -1807,13 +1830,13 @@ function buildDynamicCoverageMatrix() {
 
     // Handle single dimension case (list view instead of matrix)
     if (topDimensions.length === 1) {
-        console.log(`📋 Single dimension found, creating list view: ${topDimensions[0].label}`);
+
         return buildSingleDimensionView(topDimensions[0], criteriaMap);
     }
 
     const [dim1, dim2] = topDimensions;
     
-    console.log(`📋 Creating matrix: ${dim1.label} × ${dim2.label}`);
+
     
     // Get ALL values from the actual field (not just from workflows)
     // This ensures we show all possible options, including ones that might not have workflows yet
@@ -1829,7 +1852,7 @@ function buildDynamicCoverageMatrix() {
     function filterImportantValues(dimension, includeCatchAll = true) {
         // First, get ALL possible values from the actual field
         const allFieldValues = getAllFieldValues(dimension.field);
-        console.log(`   Field ${dimension.field} has ${allFieldValues.length} total options in field definition`);
+
         
         // If valueStats exists, use enhanced filtering but include ALL field values
         if (dimension.valueStats && dimension.valueStats.length > 0) {
@@ -1904,13 +1927,13 @@ function buildDynamicCoverageMatrix() {
     }
     
     // Debug: Check if dimensions have values
-    console.log('🔍 Debug - dim1:', {
+
         field: dim1.field,
         valuesCount: dim1.values ? dim1.values.length : 0,
         hasValueStats: !!dim1.valueStats,
         valueStatsCount: dim1.valueStats ? dim1.valueStats.length : 0
     });
-    console.log('🔍 Debug - dim2:', {
+
         field: dim2.field,
         valuesCount: dim2.values ? dim2.values.length : 0,
         hasValueStats: !!dim2.valueStats,
@@ -1920,7 +1943,7 @@ function buildDynamicCoverageMatrix() {
     const dim1Values = filterImportantValues(dim1, true);
     const dim2Values = filterImportantValues(dim2, true);
     
-    console.log(`📊 Filtered values: ${dim1Values.length} rows × ${dim2Values.length} columns`);
+
     
     if (dim1Values.length === 0 || dim2Values.length === 0) {
         console.warn('⚠️ No values found after filtering!');
@@ -1928,7 +1951,7 @@ function buildDynamicCoverageMatrix() {
         console.warn('   dim2.values:', dim2.values);
         // Fallback: use all values from dimensions
         if (dim1Values.length === 0 && dim1.values && dim1.values.length > 0) {
-            console.log('   Using all dim1 values as fallback');
+
             dim1Values.push(...dim1.values.map(v => ({
                 value: v,
                 label: getOptionLabel(v) || v,
@@ -1942,7 +1965,7 @@ function buildDynamicCoverageMatrix() {
             })));
         }
         if (dim2Values.length === 0 && dim2.values && dim2.values.length > 0) {
-            console.log('   Using all dim2 values as fallback');
+
             dim2Values.push(...dim2.values.map(v => ({
                 value: v,
                 label: getOptionLabel(v) || v,
@@ -1959,18 +1982,18 @@ function buildDynamicCoverageMatrix() {
     const catchAllCount1 = dim1Values.filter(v => v.isCatchAll).length;
     const catchAllCount2 = dim2Values.filter(v => v.isCatchAll).length;
     if (catchAllCount1 > 0 || catchAllCount2 > 0) {
-        console.log(`   Catch-all values: ${catchAllCount1} rows, ${catchAllCount2} columns`);
+
     }
     
     // Step 3: Build the matrix
     const matrix = [];
     const stats = { total: 0, covered: 0, gaps: 0, catchAllCovered: 0 };
     
-    console.log('🔍 Building matrix cells...');
-    console.log('   dim1Values:', dim1Values.length, 'values', dim1Values.slice(0, 2));
-    console.log('   dim2Values:', dim2Values.length, 'values', dim2Values.slice(0, 2));
-    console.log('   dim1.field:', dim1.field);
-    console.log('   dim2.field:', dim2.field);
+
+
+
+
+
     
     if (dim1Values.length === 0 || dim2Values.length === 0) {
         console.error('❌ ERROR: Empty value arrays!');
@@ -2117,18 +2140,18 @@ function buildDynamicCoverageMatrix() {
             
             // Debug first few cells
             if (idx1 < 2 && idx2 < 2) {
-                console.log(`   Cell [${idx1},${idx2}]: ${val1.label} × ${val2.label} - ${triggeredWorkflows.length} workflows`);
+
             }
         });
         
         // Always add row, even if it has no cells (shouldn't happen now)
         matrix.push(row);
         if (idx1 === 0) {
-            console.log(`   First row has ${row.cells.length} cells, stats.total=${stats.total}`);
+
         }
     });
     
-    console.log(`📊 Matrix summary: ${matrix.length} rows, ${stats.total} total cells, ${stats.covered} covered, ${stats.gaps} gaps`);
+
     
     if (stats.total === 0) {
         console.error('❌ ERROR: No cells were added to matrix!');
@@ -2140,7 +2163,7 @@ function buildDynamicCoverageMatrix() {
     
     stats.coverage = stats.total > 0 ? ((stats.covered / stats.total) * 100).toFixed(1) : '0';
 
-    console.log(`✅ Matrix built: ${stats.covered}/${stats.total} covered (${stats.coverage}%)`);
+
 
     return {
         matrix,
@@ -2348,7 +2371,7 @@ function isRequestTypeVisibleForWho(requestTypeValue, whoFieldKey, whoValue) {
 
 // Build single dimension view (when workflows only use one criteria field)
 function buildSingleDimensionView(dimension, criteriaMap) {
-    console.log(`Building single dimension view for: ${dimension.label}`);
+
 
     const stats = { total: 0, covered: 0, gaps: 0 };
     const items = [];
@@ -2409,7 +2432,7 @@ function evaluateDimensionMatch(workflow, dimensionField, dimensionValue) {
 
 // Generate Smart Coverage Diagram
 function generateSmartCoverageDiagram() {
-    console.log('� Generating smart coverage diagram...');
+
 
     const analysis = analyzeWorkflowCoverage();
     if (!analysis) {
@@ -2432,14 +2455,14 @@ function analyzeWorkflowCoverage() {
         return null;
     }
 
-    console.log(`📋 Analyzing ${workflowRules.length} workflow rules...`);
+
 
     // Step 1: Analyze what criteria fields are used
     const criteriaFields = new Map(); // field -> { workflows: [], values: Set }
     
     workflowRules.forEach(workflow => {
         if (!workflow.ruleCriteria || workflow.ruleCriteria.length === 0) {
-            console.log(`   ⚠️ Workflow "${workflow.ruleName}" has no criteria`);
+
             return;
         }
 
@@ -2470,9 +2493,9 @@ function analyzeWorkflowCoverage() {
     const rankedFields = Array.from(criteriaFields.values())
         .sort((a, b) => b.workflows.length - a.workflows.length);
 
-    console.log(`   Found ${rankedFields.length} criteria fields:`);
+
     rankedFields.forEach((f, idx) => {
-        console.log(`   ${idx + 1}. ${f.label} (${f.workflows.length} workflows, ${f.values.size} values)`);
+
     });
 
     // Step 3: For each workflow, show what it covers
@@ -2558,9 +2581,112 @@ function analyzeWorkflowCoverage() {
     };
 }
 
+// Build matrix data from workflow coverage analysis
+function buildWorkflowCoverageMatrix(analysis) {
+    const { criteriaFields, workflowCoverage } = analysis;
+    
+    // Need at least 2 dimensions for a matrix
+    if (criteriaFields.length < 2) {
+        return null;
+    }
+    
+    const dim1 = criteriaFields[0];
+    const dim2 = criteriaFields[1];
+    
+    // Build matrix rows
+    const matrix = [];
+    const dim1Values = Array.from(dim1.values);
+    const dim2Values = Array.from(dim2.values);
+    
+    dim1Values.forEach(dim1Val => {
+        const row = {
+            label: getOptionLabel(dim1Val) || dim1Val,
+            value: dim1Val,
+            cells: []
+        };
+        
+        dim2Values.forEach(dim2Val => {
+            // Check which workflows cover this combination
+            const coveringWorkflows = workflowRules.filter(workflow => {
+                if (!workflow.ruleCriteria) return false;
+                
+                // Check if workflow matches this combination
+                const matchesDim1 = !workflow.ruleCriteria.some(c => c.field === dim1.field) ||
+                    workflow.ruleCriteria.find(c => c.field === dim1.field)?.values.includes(dim1Val);
+                const matchesDim2 = !workflow.ruleCriteria.some(c => c.field === dim2.field) ||
+                    workflow.ruleCriteria.find(c => c.field === dim2.field)?.values.includes(dim2Val);
+                
+                return matchesDim1 && matchesDim2;
+            });
+            
+            const isLoose = coveringWorkflows.some(wf => {
+                const criteria = wf.ruleCriteria || [];
+                return criteria.length === 1;
+            });
+            
+            const looseWorkflows = coveringWorkflows.filter(wf => {
+                const criteria = wf.ruleCriteria || [];
+                return criteria.length === 1;
+            }).map(wf => wf.ruleName);
+            
+            const specificWorkflows = coveringWorkflows.filter(wf => {
+                const criteria = wf.ruleCriteria || [];
+                return criteria.length > 1;
+            }).map(wf => wf.ruleName);
+            
+            row.cells.push({
+                covered: coveringWorkflows.length > 0,
+                workflowCount: coveringWorkflows.length,
+                workflows: coveringWorkflows.map(wf => wf.ruleName),
+                looseWorkflows: looseWorkflows,
+                specificWorkflows: specificWorkflows,
+                isCatchAllCoverage: isLoose,
+                isVisible: true // For workflow coverage, we show all combinations
+            });
+        });
+        
+        matrix.push(row);
+    });
+    
+    // Calculate stats
+    const stats = {
+        total: matrix.length * dim2Values.length,
+        covered: 0,
+        gaps: 0,
+        catchAllCovered: 0
+    };
+    
+    matrix.forEach(row => {
+        row.cells.forEach(cell => {
+            if (cell.covered) {
+                stats.covered++;
+                if (cell.isCatchAllCoverage) {
+                    stats.catchAllCovered++;
+                }
+            } else {
+                stats.gaps++;
+            }
+        });
+    });
+    
+    stats.coverage = ((stats.covered / stats.total) * 100).toFixed(1);
+    
+    return {
+        matrix: matrix,
+        dimensions: [
+            { ...dim1, values: dim1Values.map(v => ({ value: v, label: getOptionLabel(v) || v })) },
+            { ...dim2, values: dim2Values.map(v => ({ value: v, label: getOptionLabel(v) || v })) }
+        ],
+        stats: stats
+    };
+}
+
 // Build HTML for workflow coverage analysis
 function buildWorkflowCoverageHTML(analysis) {
     const { totalWorkflows, criteriaFields, workflowCoverage, gaps, templateName, timestamp } = analysis;
+    
+    // Try to build a matrix if we have 2+ dimensions
+    const matrixData = buildWorkflowCoverageMatrix(analysis);
 
     // Build workflow list HTML
     let workflowsHTML = '';
@@ -2648,6 +2774,14 @@ function buildWorkflowCoverageHTML(analysis) {
         .stat-label { color: #7f8c8d; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; }
         .stat-value { font-size: 2rem; font-weight: bold; color: #2c3e50; margin-top: 0.5rem; }
         .print-button { background: #FFD700; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-size: 1rem; margin-bottom: 1rem; }
+        .matrix-wrapper { overflow-x: auto; margin-bottom: 2rem; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { padding: 0.8rem; text-align: center; border: 2px solid #ecf0f1; font-size: 0.9rem; }
+        th { background: #34495e; color: white; font-weight: 600; }
+        .row-header { text-align: left; font-weight: 600; background: #f8f9fa; color: #2c3e50; }
+        .cell-covered { background: #d5f4e6; border-left: 4px solid #27ae60; }
+        .cell-catchall { background: #d6eaf8; border-left: 4px solid #3498db; }
+        .cell-gap { background: #fadbd8; border-left: 4px solid #e74c3c; }
         @media print { body { background: white; } .print-button { display: none; } }
     </style>
 </head>
@@ -2676,6 +2810,98 @@ function buildWorkflowCoverageHTML(analysis) {
                 <div class="stat-value" style="color: ${gaps.length > 0 ? '#e74c3c' : '#27ae60'};">${gaps.length}</div>
             </div>
         </div>
+        
+        ${matrixData ? (() => {
+            const { matrix, dimensions, stats: matrixStats } = matrixData;
+            const [dim1, dim2] = dimensions;
+            
+            // Build header columns
+            const headerCols = dim2.values.map((val, colIdx) => {
+                const count = matrix.reduce((sum, row) => sum + (row.cells[colIdx]?.covered ? 1 : 0), 0);
+                return '<th>' + val.label + ' <small style="color: #7f8c8d;">(' + count + ')</small></th>';
+            }).join('');
+            
+            // Build table rows
+            let cellId = 0;
+            const tableRows = matrix.map(row => {
+                const cells = row.cells.map(cell => {
+                    // Determine cell class
+                    let cellClass;
+                    if (cell.covered) {
+                        cellClass = cell.isCatchAllCoverage ? 'cell-catchall' : 'cell-covered';
+                    } else {
+                        cellClass = 'cell-gap';
+                    }
+                    const cellIdStr = 'cell-' + (cellId++);
+                    const dropdownId = 'dropdown-' + cellIdStr;
+                    
+                    // Build workflow list for dropdown
+                    let workflowsHtml = '';
+                    if (cell.workflows.length > 0) {
+                        workflowsHtml = '<div class="workflow-dropdown" id="' + dropdownId + '" style="display:none; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.1);">';
+                        if (cell.looseWorkflows.length > 0) {
+                            workflowsHtml += '<div style="font-size: 0.7rem; color: #3498db; font-weight: bold; margin-bottom: 4px;">Catch-All Workflows:</div>';
+                            cell.looseWorkflows.forEach(wf => {
+                                workflowsHtml += '<div style="font-size: 0.75rem; padding: 2px 0; color: #2c3e50; padding-left: 12px;">• ' + wf + '</div>';
+                            });
+                        }
+                        if (cell.specificWorkflows.length > 0) {
+                            if (cell.looseWorkflows.length > 0) {
+                                workflowsHtml += '<div style="font-size: 0.7rem; color: #7f8c8d; font-weight: bold; margin-top: 8px; margin-bottom: 4px;">Specific Workflows:</div>';
+                            }
+                            cell.specificWorkflows.forEach(wf => {
+                                workflowsHtml += '<div style="font-size: 0.75rem; padding: 2px 0; color: #2c3e50; padding-left: 12px;">• ' + wf + '</div>';
+                            });
+                        }
+                        workflowsHtml += '</div>';
+                    } else {
+                        workflowsHtml = '<div class="workflow-dropdown" id="' + dropdownId + '" style="display:none; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.1); color: #e74c3c; font-style: italic;">No workflows configured</div>';
+                    }
+                    
+                    // Make clickable if there are workflows or it's a gap
+                    const clickableAttr = ' onclick="toggleWorkflows(\'' + dropdownId + '\')" style="cursor: pointer;"';
+                    let summary = '';
+                    if (cell.covered) {
+                        if (cell.isCatchAllCoverage) {
+                            summary = '<strong style="color: #3498db;">Catch-All</strong><br><small>Loose rule</small>';
+                        } else {
+                            summary = '<strong>' + cell.workflowCount + '</strong><br><small>' + (cell.workflowCount === 1 ? 'workflow' : 'workflows') + '</small>';
+                        }
+                        if (cell.workflows.length > 1) {
+                            summary += '<br><small style="color: #2c3e50; font-weight: 500;">Click to expand</small>';
+                        }
+                    } else {
+                        summary = '<strong>Gap</strong>';
+                    }
+                    
+                    return '<td id="' + cellIdStr + '" class="' + cellClass + '"' + clickableAttr + '>' + summary + workflowsHtml + '</td>';
+                }).join('');
+                
+                const coveredCount = row.cells.filter(c => c.covered).length;
+                return '<tr><td class="row-header">' + row.label + ' <small style="color: #7f8c8d;">(' + coveredCount + ')</small></td>' + cells + '</tr>';
+            }).join('');
+            
+            return `
+        <div class="section">
+            <h2 class="section-title">📊 Coverage Matrix</h2>
+            <div class="matrix-wrapper" style="overflow-x: auto; margin-bottom: 2rem;">
+                <table style="width: 100%; border-collapse: collapse; background: white;">
+                    <thead>
+                        <tr>
+                            <th style="text-align: left; padding: 0.8rem; background: #34495e; color: white; font-weight: 600;">${dim1.label} / ${dim2.label} →</th>
+                            ${headerCols}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows}
+                    </tbody>
+                </table>
+            </div>
+            <div style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 6px;">
+                <strong>Matrix Stats:</strong> ${matrixStats.covered}/${matrixStats.total} covered (${matrixStats.coverage}%) | ${matrixStats.gaps} gaps | ${matrixStats.catchAllCovered} catch-all rules
+            </div>
+        </div>`;
+        })() : ''}
 
         <div class="section">
             <h2 class="section-title">📋 Criteria Fields Used</h2>
@@ -2695,6 +2921,16 @@ function buildWorkflowCoverageHTML(analysis) {
             ${gapsHTML}
         </div>
     </div>
+    <script>
+        function toggleWorkflows(dropdownId) {
+            const dropdown = document.getElementById(dropdownId);
+            if (dropdown.style.display === "none") {
+                dropdown.style.display = "block";
+            } else {
+                dropdown.style.display = "none";
+            }
+        }
+    </script>
 </body>
 </html>`;
 
@@ -2960,7 +3196,7 @@ function buildSmartDiagramHTML(coverageData) {
 
 // Coverage Matrix Diagram: Visual representation for customer discussion
 function generateCoverageMatrix() {
-    console.log('� Generating coverage matrix diagram...');
+
 
     // Extract subject types and request types
     const subjectTypes = (webformData.webFormDto?.subjectTypes || [])
@@ -3084,10 +3320,10 @@ function calculateGaps(matrix) {
 
 // Gap Detection System: Finds combinations of WHO+WHAT that don't trigger workflows
 function detectWorkflowGaps() {
-    console.log('� Gap Detection starting...');
-    console.log('webformData:', !!webformData);
-    console.log('allFields:', allFields.length, 'fields loaded');
-    console.log('workflowRules:', workflowRules.length, 'workflows loaded');
+
+
+
+
 
     // Extract request types and subject types (WHO + WHAT)
     const requestTypes = (webformData.webFormDto?.requestTypes || [])
@@ -3096,8 +3332,8 @@ function detectWorkflowGaps() {
     const subjectTypes = (webformData.webFormDto?.subjectTypes || [])
         .filter(st => st.isSelected !== false && st.status !== 20); // Only active ones
 
-    console.log('Found', requestTypes.length, 'request types:', requestTypes.map(rt => rt.fieldName));
-    console.log('Found', subjectTypes.length, 'subject types:', subjectTypes.map(st => st.fieldName));
+
+
 
     // Find the field keys for requestType and subjectType in allFields
     const requestTypeField = allFields.find(f =>
@@ -3109,9 +3345,9 @@ function detectWorkflowGaps() {
 
     if (!requestTypeField || !subjectTypeField) {
         console.warn('Gap detection: Could not find requestType or subjectType fields');
-        console.log('Available fields:', allFields.map(f => f.key).join(', '));
-        console.log('Subject types:', subjectTypes.map(st => st.fieldName).join(', '));
-        console.log('Request types:', requestTypes.map(rt => rt.fieldName).join(', '));
+
+
+
         alert(`⚠️ Gap detection error:\n\nCould not find subject type or request type fields.\n\nAvailable fields: ${allFields.map(f => f.key).slice(0, 10).join(', ')}...`);
         return {
             gaps: [],
@@ -3133,7 +3369,7 @@ function detectWorkflowGaps() {
         }
     }
 
-    console.log(`🔍 Gap Detection: Testing ${combinations.length} WHO+WHAT combinations...`);
+
 
     // Test each combination to find gaps
     const gaps = [];
@@ -3183,7 +3419,7 @@ function detectWorkflowGaps() {
         }
     });
 
-    console.log(`✅ Gap Detection Complete: Found ${gaps.length} gaps out of ${combinations.length} combinations`);
+
 
     return {
         gaps: gaps,
@@ -3539,9 +3775,9 @@ function showAnalysisReport() {
 
 // Export gap analysis results
 function exportGapAnalysis() {
-    console.log('� exportGapAnalysis() called');
+
     const gapAnalysis = detectWorkflowGaps();
-    console.log('Gap analysis results:', gapAnalysis);
+
 
     if (!gapAnalysis.gaps || gapAnalysis.gaps.length === 0) {
         alert(`✅ No workflow gaps found!\n\nAll ${gapAnalysis.total} WHO+WHAT combinations have assigned workflows.\nCoverage: ${gapAnalysis.coverage_percentage}%`);
@@ -3999,8 +4235,32 @@ function getFieldLabel(fieldKey) {
 
 function getOptionLabel(optionKey) {
     if (!optionKey) return optionKey;
-    
-    // Check translations first
+
+    // Check if this is a SHA-512 hash (128 hex characters) and decrypt it
+    if (typeof optionKey === 'string' && optionKey.length === 128 && /^[0-9a-f]+$/i.test(optionKey)) {
+
+
+
+        // Try state hash lookup first
+        if (stateHashLookup[optionKey]) {
+            const decrypted = stateHashLookup[optionKey];
+            const result = decrypted.originalValue || decrypted.originalKey;
+
+            return result;
+        }
+        // Try country hash lookup
+        if (countryHashLookup[optionKey]) {
+            const decrypted = countryHashLookup[optionKey];
+            const result = decrypted.originalValue || decrypted.originalKey;
+
+            return result;
+        }
+        // If hash not found, return truncated hash with indicator
+
+        return `[Hash: ${optionKey.substring(0, 16)}...]`;
+    }
+
+    // Check translations
     if (translations && translations.options && translations.options[optionKey]) {
         return translations.options[optionKey];
     }
@@ -4010,75 +4270,75 @@ function getOptionLabel(optionKey) {
     if (translations && translations.subjectTypes && translations.subjectTypes[optionKey]) {
         return translations.subjectTypes[optionKey];
     }
-    
+
     // For country codes, try to find the country name from the country field options
     // Country codes are typically 2-letter ISO codes (like "US", "BR", "DZ")
     if (optionKey.length === 2 && /^[A-Z]{2}$/i.test(optionKey)) {
-        const countryField = allFields.find(f => 
-            f.key && (f.key.toLowerCase().includes('country') || 
+        const countryField = allFields.find(f =>
+            f.key && (f.key.toLowerCase().includes('country') ||
                      (f.label && f.label.toLowerCase().includes('country')))
         );
-        
+
         if (countryField && countryField.options) {
-            const countryOption = countryField.options.find(opt => 
+            const countryOption = countryField.options.find(opt =>
                 opt.key === optionKey || opt.key === optionKey.toUpperCase() || opt.key === optionKey.toLowerCase()
             );
             if (countryOption && countryOption.value) {
                 return countryOption.value;
             }
         }
-        
+
         // Fallback: Try the comprehensive country list
         const worldCountries = getWorldCountriesOptions();
-        const countryOption = worldCountries.find(opt => 
+        const countryOption = worldCountries.find(opt =>
             opt.key === optionKey || opt.key === optionKey.toUpperCase() || opt.key === optionKey.toLowerCase()
         );
         if (countryOption && countryOption.value) {
             return countryOption.value;
         }
     }
-    
+
     return optionKey;
 }
 
 // Test function to verify brute-force decryption (exposed to console)
 window.testBruteForce = async function(testHash) {
-    console.log('🧪 Testing brute-force decryption...');
-    console.log(`Hash lookup table size: ${Object.keys(countryHashLookup).length} entries`);
+
+
     
     if (!testHash) {
         // Test with a known country code
         const testCountry = 'US';
-        console.log(`\n📝 Testing with country code: ${testCountry}`);
+
         const testHash = await sha512(testCountry.toLowerCase());
-        console.log(`Generated hash: ${testHash}`);
+
         
         if (countryHashLookup[testHash]) {
-            console.log(`✅ SUCCESS: Hash found in lookup!`);
-            console.log(`   Decrypted to: ${countryHashLookup[testHash].originalKey}`);
-            console.log(`   Original variant: "${countryHashLookup[testHash].hashedVariant}"`);
+
+
+
         } else {
-            console.log(`❌ FAILED: Hash not found in lookup`);
-            console.log(`   This means the hash lookup table was not built correctly.`);
+
+
         }
     } else {
         // Test with provided hash
-        console.log(`\n📝 Testing with provided hash: ${testHash.substring(0, 16)}...`);
+
         if (countryHashLookup[testHash]) {
-            console.log(`✅ SUCCESS: Hash found in lookup!`);
-            console.log(`   Decrypted to: ${countryHashLookup[testHash].originalKey}`);
-            console.log(`   Original variant: "${countryHashLookup[testHash].hashedVariant}"`);
+
+
+
         } else {
-            console.log(`❌ FAILED: Hash not found in lookup`);
-            console.log(`   This hash does not match any country in the lookup table.`);
+
+
         }
     }
     
     // Show some example hashes
-    console.log(`\n📋 Sample hashes in lookup table (first 5):`);
+
     const sampleHashes = Object.keys(countryHashLookup).slice(0, 5);
     sampleHashes.forEach((hash, idx) => {
         const entry = countryHashLookup[hash];
-        console.log(`   ${idx + 1}. ${hash.substring(0, 16)}... → ${entry.originalKey} (from "${entry.hashedVariant}")`);
+
     });
 };
