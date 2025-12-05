@@ -215,28 +215,42 @@ async function buildStateHashLookup() {
     for (const option of stateField.options) {
         const key = option.key;
         const value = option.value;
-        processedOptions.push(`${key} (${value})`);
+        const abbrev = option.abbrev; // State abbreviation (e.g., "CA")
+        processedOptions.push(`${key} (${value})${abbrev ? ` [${abbrev}]` : ''}`);
 
-        // Try multiple variations (lowercase seems to be what OneTrust uses)
-        const variations = [
-            key,
-            key.toLowerCase(),
-            key.toUpperCase(),
-            value,
-            value.toLowerCase(),
-            value.toUpperCase(),
-            // Also try common abbreviations (e.g., "CA" for "California")
-            value.replace(/\s+/g, ''), // Remove spaces
-            value.replace(/\s+/g, '').toLowerCase(),
-            value.replace(/\s+/g, '').toUpperCase()
-        ];
+        // Build variations array - include both abbreviation and full name
+        const variations = [];
+        
+        // Add abbreviation variations if available
+        if (abbrev) {
+            variations.push(
+                abbrev,              // "CA"
+                abbrev.toLowerCase(), // "ca"
+                abbrev.toUpperCase()  // "CA" (same, but explicit)
+            );
+        }
+        
+        // Add full name variations
+        variations.push(
+            value,                   // "California"
+            value.toLowerCase(),     // "california"
+            value.toUpperCase(),     // "CALIFORNIA"
+            key,                     // "California" (spaces removed)
+            key.toLowerCase(),       // "california"
+            key.toUpperCase(),       // "CALIFORNIA"
+            value.replace(/\s+/g, ''), // "California" (spaces removed)
+            value.replace(/\s+/g, '').toLowerCase(), // "california"
+            value.replace(/\s+/g, '').toUpperCase()  // "CALIFORNIA"
+        );
 
+        // Hash all variations
         for (const variant of variations) {
             if (variant) { // Skip empty/null variants
                 const hash = await sha512(variant);
                 stateHashLookup[hash] = {
                     originalKey: key,
                     originalValue: value,
+                    originalAbbrev: abbrev || null,
                     hashedVariant: variant
                 };
                 hashCount++;
@@ -424,22 +438,65 @@ function getWorldCountriesOptions() {
 }
 
 function getUSStatesOptions() {
-    const states = [
-        'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado',
-        'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho',
-        'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana',
-        'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota',
-        'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada',
-        'New Hampshire', 'New Jersey', 'New Mexico', 'New York',
-        'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon',
-        'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota',
-        'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington',
-        'West Virginia', 'Wisconsin', 'Wyoming', 'District of Columbia'
+    // US states with their standard abbreviations
+    const statesWithAbbrevs = [
+        { abbrev: 'AL', name: 'Alabama' },
+        { abbrev: 'AK', name: 'Alaska' },
+        { abbrev: 'AZ', name: 'Arizona' },
+        { abbrev: 'AR', name: 'Arkansas' },
+        { abbrev: 'CA', name: 'California' },
+        { abbrev: 'CO', name: 'Colorado' },
+        { abbrev: 'CT', name: 'Connecticut' },
+        { abbrev: 'DE', name: 'Delaware' },
+        { abbrev: 'FL', name: 'Florida' },
+        { abbrev: 'GA', name: 'Georgia' },
+        { abbrev: 'HI', name: 'Hawaii' },
+        { abbrev: 'ID', name: 'Idaho' },
+        { abbrev: 'IL', name: 'Illinois' },
+        { abbrev: 'IN', name: 'Indiana' },
+        { abbrev: 'IA', name: 'Iowa' },
+        { abbrev: 'KS', name: 'Kansas' },
+        { abbrev: 'KY', name: 'Kentucky' },
+        { abbrev: 'LA', name: 'Louisiana' },
+        { abbrev: 'ME', name: 'Maine' },
+        { abbrev: 'MD', name: 'Maryland' },
+        { abbrev: 'MA', name: 'Massachusetts' },
+        { abbrev: 'MI', name: 'Michigan' },
+        { abbrev: 'MN', name: 'Minnesota' },
+        { abbrev: 'MS', name: 'Mississippi' },
+        { abbrev: 'MO', name: 'Missouri' },
+        { abbrev: 'MT', name: 'Montana' },
+        { abbrev: 'NE', name: 'Nebraska' },
+        { abbrev: 'NV', name: 'Nevada' },
+        { abbrev: 'NH', name: 'New Hampshire' },
+        { abbrev: 'NJ', name: 'New Jersey' },
+        { abbrev: 'NM', name: 'New Mexico' },
+        { abbrev: 'NY', name: 'New York' },
+        { abbrev: 'NC', name: 'North Carolina' },
+        { abbrev: 'ND', name: 'North Dakota' },
+        { abbrev: 'OH', name: 'Ohio' },
+        { abbrev: 'OK', name: 'Oklahoma' },
+        { abbrev: 'OR', name: 'Oregon' },
+        { abbrev: 'PA', name: 'Pennsylvania' },
+        { abbrev: 'RI', name: 'Rhode Island' },
+        { abbrev: 'SC', name: 'South Carolina' },
+        { abbrev: 'SD', name: 'South Dakota' },
+        { abbrev: 'TN', name: 'Tennessee' },
+        { abbrev: 'TX', name: 'Texas' },
+        { abbrev: 'UT', name: 'Utah' },
+        { abbrev: 'VT', name: 'Vermont' },
+        { abbrev: 'VA', name: 'Virginia' },
+        { abbrev: 'WA', name: 'Washington' },
+        { abbrev: 'WV', name: 'West Virginia' },
+        { abbrev: 'WI', name: 'Wisconsin' },
+        { abbrev: 'WY', name: 'Wyoming' },
+        { abbrev: 'DC', name: 'District of Columbia' }
     ];
 
-    return states.map(state => ({
-        key: state.replace(/\s+/g, ''),
-        value: state
+    return statesWithAbbrevs.map(state => ({
+        key: state.name.replace(/\s+/g, ''),
+        value: state.name,
+        abbrev: state.abbrev
     }));
 }
 
@@ -801,13 +858,50 @@ async function parseWebform() {
                     const totalDecrypted = decryptedCountries.size + decryptedStates.size;
                     console.log(`   📊 Brute force results: checked ${totalHashesChecked} hash(es), decrypted ${decryptedCountries.size} country value(s), ${decryptedStates.size} state value(s)`);
 
+                    // Track which hashes we found but couldn't decrypt
+                    const undecryptedStateHashes = new Set();
+                    const undecryptedCountryHashes = new Set();
+                    
+                    // Re-check for undecrypted hashes
+                    conditionGroups.forEach((group) => {
+                        const conditions = group.conditions || [];
+                        conditions.forEach((condition) => {
+                            const fieldHasHash = condition.field && condition.field.includes('Hash');
+                            const valueIsHash = condition.value && typeof condition.value === 'string' && condition.value.length === 128 && /^[0-9a-f]+$/i.test(condition.value);
+                            
+                            if (fieldHasHash || valueIsHash) {
+                                const isCountryHash = condition.field && condition.field.toLowerCase().includes('country');
+                                const isStateHash = condition.field && condition.field.toLowerCase().includes('state');
+                                const hashValues = Array.isArray(condition.value) ? condition.value : [condition.value];
+                                
+                                hashValues.forEach((hashValue) => {
+                                    if (hashValue && typeof hashValue === 'string') {
+                                        if (isStateHash && !stateHashLookup[hashValue]) {
+                                            undecryptedStateHashes.add(hashValue);
+                                        } else if (isCountryHash && !countryHashLookup[hashValue]) {
+                                            undecryptedCountryHashes.add(hashValue);
+                                        } else if (!isCountryHash && !isStateHash) {
+                                            // Unknown type - check both
+                                            if (!countryHashLookup[hashValue] && !stateHashLookup[hashValue]) {
+                                                // Can't determine type, but it's a hash
+                                                if (condition.field && condition.field.toLowerCase().includes('state')) {
+                                                    undecryptedStateHashes.add(hashValue);
+                                                }
+                                            }
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                    });
+
                     if (hasDecryptedAny && totalDecrypted > 0) {
-                        // Successfully decrypted! Use the actual values
+                        // Successfully decrypted! Use the actual values, but mark as originally hashed
                         if (decryptedCountries.size > 0) {
                             ruleCriteria.push({
                                 field: 'country',
                                 values: Array.from(decryptedCountries),
-                                isHashed: false,
+                                isHashed: true, // Mark as originally hashed
                                 inferred: false,
                                 decrypted: true
                             });
@@ -817,13 +911,39 @@ async function parseWebform() {
                             ruleCriteria.push({
                                 field: 'state',
                                 values: Array.from(decryptedStates),
-                                isHashed: false,
+                                isHashed: true, // Mark as originally hashed
                                 inferred: false,
                                 decrypted: true
                             });
                             console.log(`✅ Successfully decrypted ${decryptedStates.size} state value(s): ${Array.from(decryptedStates).join(', ')}`);
                         }
-                    } else {
+                    }
+                    
+                    // Also add undecrypted hashes if any
+                    if (undecryptedStateHashes.size > 0) {
+                        ruleCriteria.push({
+                            field: 'state',
+                            values: Array.from(undecryptedStateHashes).map(h => `[HASHED: ${h.substring(0, 16)}...]`),
+                            isHashed: true,
+                            inferred: false,
+                            decrypted: false,
+                            originalHashes: Array.from(undecryptedStateHashes)
+                        });
+                        console.log(`⚠️ Found ${undecryptedStateHashes.size} undecrypted state hash(es)`);
+                    }
+                    if (undecryptedCountryHashes.size > 0) {
+                        ruleCriteria.push({
+                            field: 'country',
+                            values: Array.from(undecryptedCountryHashes).map(h => `[HASHED: ${h.substring(0, 16)}...]`),
+                            isHashed: true,
+                            inferred: false,
+                            decrypted: false,
+                            originalHashes: Array.from(undecryptedCountryHashes)
+                        });
+                        console.log(`⚠️ Found ${undecryptedCountryHashes.size} undecrypted country hash(es)`);
+                    }
+                    
+                    if (!hasDecryptedAny && totalDecrypted === 0 && undecryptedStateHashes.size === 0 && undecryptedCountryHashes.size === 0) {
                         // Fallback: Try to infer from workflow name if brute force failed
                         console.log(`⚠️ Brute force failed, falling back to workflow name inference...`);
                         if (ruleName.toUpperCase().includes('CCPA')) {
@@ -867,7 +987,8 @@ async function parseWebform() {
                     }
                     // Skip normal parsing for hashed workflows - we already handled them
                 } else {
-                    // Normal workflow parsing (no hashes)
+                    // Normal workflow parsing (no hashes detected in field names)
+                    // But we still need to check if values themselves are hashes
                     conditionGroups.forEach(group => {
                     const conditions = group.conditions || [];
                     conditions.forEach(condition => {
@@ -879,6 +1000,65 @@ async function parseWebform() {
                         let value = condition.value;
                         if (guidToKeyMap[value]) {
                             value = guidToKeyMap[value];
+                        }
+
+                        // Check if value is a hash (128-character hex string)
+                        const valueIsHash = value && typeof value === 'string' && value.length === 128 && /^[0-9a-f]+$/i.test(value);
+                        const isStateField = field && (field.toLowerCase().includes('state') || field === 'state');
+                        const isCountryField = field && (field.toLowerCase().includes('country') || field === 'country');
+                        
+                        // If it's a state/country field with a hash value, try to decrypt it
+                        if (valueIsHash && (isStateField || isCountryField)) {
+                            let decrypted = null;
+                            if (isStateField && stateHashLookup[value]) {
+                                decrypted = stateHashLookup[value];
+                                value = decrypted.originalKey || decrypted.originalValue;
+                                console.log(`   🔓 Decrypted state hash in normal parsing: ${value}`);
+                            } else if (isCountryField && countryHashLookup[value]) {
+                                decrypted = countryHashLookup[value];
+                                value = decrypted.originalKey || decrypted.originalValue;
+                                console.log(`   🔓 Decrypted country hash in normal parsing: ${value}`);
+                            }
+                            
+                            // If we decrypted it, mark as originally hashed
+                            if (decrypted) {
+                                const existingCriteria = ruleCriteria.find(c => c.field === (isStateField ? 'state' : 'country'));
+                                if (existingCriteria) {
+                                    if (!existingCriteria.values.includes(value)) {
+                                        existingCriteria.values.push(value);
+                                    }
+                                    existingCriteria.isHashed = true;
+                                    existingCriteria.decrypted = true;
+                                } else {
+                                    ruleCriteria.push({
+                                        field: isStateField ? 'state' : 'country',
+                                        values: [value],
+                                        isHashed: true,
+                                        decrypted: true,
+                                        inferred: false
+                                    });
+                                }
+                                return; // Skip normal processing for this condition
+                            } else if (valueIsHash) {
+                                // Hash found but couldn't decrypt - mark as hashed
+                                const existingCriteria = ruleCriteria.find(c => c.field === (isStateField ? 'state' : 'country'));
+                                if (existingCriteria) {
+                                    if (!existingCriteria.values.includes(`[HASHED: ${value.substring(0, 16)}...]`)) {
+                                        existingCriteria.values.push(`[HASHED: ${value.substring(0, 16)}...]`);
+                                    }
+                                    existingCriteria.isHashed = true;
+                                    existingCriteria.decrypted = false;
+                                } else {
+                                    ruleCriteria.push({
+                                        field: isStateField ? 'state' : 'country',
+                                        values: [`[HASHED: ${value.substring(0, 16)}...]`],
+                                        isHashed: true,
+                                        decrypted: false,
+                                        originalHashes: [value]
+                                    });
+                                }
+                                return; // Skip normal processing for this condition
+                            }
                         }
 
                         // Check if we already have this field in ruleCriteria
@@ -1606,8 +1786,9 @@ function buildDynamicCoverageMatrix() {
     console.log('� Building dynamic coverage matrix...');
 
     // Step 1: Analyze what workflows actually care about
-    const criteriaMap = analyzeWorkflowDimensions();
-
+    const analysis = analyzeWorkflowDimensions();
+    const criteriaMap = analysis.criteriaMap || analysis; // Handle both old and new format
+    
     if (Object.keys(criteriaMap).length === 0) {
         console.warn('⚠️ No workflow criteria found');
         alert('⚠️ Cannot generate diagram:\nNo workflow criteria found. Check that workflows are configured.');
@@ -1615,7 +1796,8 @@ function buildDynamicCoverageMatrix() {
     }
 
     // Step 2: Get the top dimensions (1 or 2)
-    const topDimensions = rankDimensions(criteriaMap, 2);
+    const actualMap = analysis.criteriaMap || criteriaMap;
+    const topDimensions = rankDimensions(actualMap, 2);
 
     if (topDimensions.length === 0) {
         console.warn('⚠️ No dimensions found');
@@ -1630,77 +1812,358 @@ function buildDynamicCoverageMatrix() {
     }
 
     const [dim1, dim2] = topDimensions;
-
+    
     console.log(`📋 Creating matrix: ${dim1.label} × ${dim2.label}`);
-
+    
+    // Get ALL values from the actual field (not just from workflows)
+    // This ensures we show all possible options, including ones that might not have workflows yet
+    function getAllFieldValues(fieldKey) {
+        const field = allFields.find(f => f.key === fieldKey);
+        if (field && field.options && field.options.length > 0) {
+            return field.options.map(opt => opt.key);
+        }
+        return [];
+    }
+    
+    // Filter: Show all values from the field, enhanced with workflow stats
+    function filterImportantValues(dimension, includeCatchAll = true) {
+        // First, get ALL possible values from the actual field
+        const allFieldValues = getAllFieldValues(dimension.field);
+        console.log(`   Field ${dimension.field} has ${allFieldValues.length} total options in field definition`);
+        
+        // If valueStats exists, use enhanced filtering but include ALL field values
+        if (dimension.valueStats && dimension.valueStats.length > 0) {
+            // Create a map of valueStats for quick lookup
+            const valueStatsMap = {};
+            dimension.valueStats.forEach(vs => {
+                valueStatsMap[vs.value] = vs;
+            });
+            
+            // Return ALL field values, enhanced with stats where available
+            return allFieldValues.map(value => {
+                const stats = valueStatsMap[value];
+                if (stats) {
+                    return {
+                        value: stats.value,
+                        label: getOptionLabel(stats.value) || stats.value,
+                        workflowCount: stats.totalWorkflowCount,
+                        looseWorkflowCount: stats.looseWorkflowCount,
+                        specificWorkflowCount: stats.specificWorkflowCount,
+                        workflows: stats.workflows,
+                        isCatchAll: stats.isCatchAll,
+                        importance: stats.importance,
+                        coverageType: stats.coverageType
+                    };
+                } else {
+                    // Value exists in field but not in any workflow
+                    return {
+                        value: value,
+                        label: getOptionLabel(value) || value,
+                        workflowCount: 0,
+                        looseWorkflowCount: 0,
+                        specificWorkflowCount: 0,
+                        workflows: [],
+                        isCatchAll: false,
+                        importance: 'LOW',
+                        coverageType: 'NONE'
+                    };
+                }
+            });
+        }
+        
+        // Fallback: use all values from field definition
+        const values = allFieldValues.length > 0 ? allFieldValues : (dimension.values || []);
+        return values.map(value => {
+            // Try to find this value in workflows to get basic stats
+            let workflowCount = 0;
+            const workflows = [];
+            workflowRules.forEach(workflow => {
+                if (!workflow.ruleCriteria) return;
+                workflow.ruleCriteria.forEach(criterion => {
+                    if (criterion.field === dimension.field && criterion.values.includes(value)) {
+                        if (!workflows.includes(workflow.ruleName)) {
+                            workflows.push(workflow.ruleName);
+                            workflowCount++;
+                        }
+                    }
+                });
+            });
+            
+            return {
+                value: value,
+                label: getOptionLabel(value) || value,
+                workflowCount: workflowCount,
+                looseWorkflowCount: 0,
+                specificWorkflowCount: 0,
+                workflows: workflows,
+                isCatchAll: false,
+                importance: workflowCount > 0 ? 'MEDIUM' : 'LOW',
+                coverageType: 'NONE'
+            };
+        });
+    }
+    
+    // Debug: Check if dimensions have values
+    console.log('🔍 Debug - dim1:', {
+        field: dim1.field,
+        valuesCount: dim1.values ? dim1.values.length : 0,
+        hasValueStats: !!dim1.valueStats,
+        valueStatsCount: dim1.valueStats ? dim1.valueStats.length : 0
+    });
+    console.log('🔍 Debug - dim2:', {
+        field: dim2.field,
+        valuesCount: dim2.values ? dim2.values.length : 0,
+        hasValueStats: !!dim2.valueStats,
+        valueStatsCount: dim2.valueStats ? dim2.valueStats.length : 0
+    });
+    
+    const dim1Values = filterImportantValues(dim1, true);
+    const dim2Values = filterImportantValues(dim2, true);
+    
+    console.log(`📊 Filtered values: ${dim1Values.length} rows × ${dim2Values.length} columns`);
+    
+    if (dim1Values.length === 0 || dim2Values.length === 0) {
+        console.warn('⚠️ No values found after filtering!');
+        console.warn('   dim1.values:', dim1.values);
+        console.warn('   dim2.values:', dim2.values);
+        // Fallback: use all values from dimensions
+        if (dim1Values.length === 0 && dim1.values && dim1.values.length > 0) {
+            console.log('   Using all dim1 values as fallback');
+            dim1Values.push(...dim1.values.map(v => ({
+                value: v,
+                label: getOptionLabel(v) || v,
+                workflowCount: 1,
+                looseWorkflowCount: 0,
+                specificWorkflowCount: 0,
+                workflows: [],
+                isCatchAll: false,
+                importance: 'MEDIUM',
+                coverageType: 'NONE'
+            })));
+        }
+        if (dim2Values.length === 0 && dim2.values && dim2.values.length > 0) {
+            console.log('   Using all dim2 values as fallback');
+            dim2Values.push(...dim2.values.map(v => ({
+                value: v,
+                label: getOptionLabel(v) || v,
+                workflowCount: 1,
+                looseWorkflowCount: 0,
+                specificWorkflowCount: 0,
+                workflows: [],
+                isCatchAll: false,
+                importance: 'MEDIUM',
+                coverageType: 'NONE'
+            })));
+        }
+    }
+    const catchAllCount1 = dim1Values.filter(v => v.isCatchAll).length;
+    const catchAllCount2 = dim2Values.filter(v => v.isCatchAll).length;
+    if (catchAllCount1 > 0 || catchAllCount2 > 0) {
+        console.log(`   Catch-all values: ${catchAllCount1} rows, ${catchAllCount2} columns`);
+    }
+    
     // Step 3: Build the matrix
     const matrix = [];
-    const stats = { total: 0, covered: 0, gaps: 0 };
-
-    dim1.values.forEach(val1 => {
-        // Check if this row's dimension is visible
-        const row1Visible = isCombinationVisible([dim1.field], [val1]);
-
+    const stats = { total: 0, covered: 0, gaps: 0, catchAllCovered: 0 };
+    
+    console.log('🔍 Building matrix cells...');
+    console.log('   dim1Values:', dim1Values.length, 'values', dim1Values.slice(0, 2));
+    console.log('   dim2Values:', dim2Values.length, 'values', dim2Values.slice(0, 2));
+    console.log('   dim1.field:', dim1.field);
+    console.log('   dim2.field:', dim2.field);
+    
+    if (dim1Values.length === 0 || dim2Values.length === 0) {
+        console.error('❌ ERROR: Empty value arrays!');
+        console.error('   dim1Values:', dim1Values);
+        console.error('   dim2Values:', dim2Values);
+        return null;
+    }
+    
+    dim1Values.forEach((val1, idx1) => {
+        if (!val1 || !val1.value) {
+            console.error(`❌ ERROR: Invalid val1 at index ${idx1}:`, val1);
+            return;
+        }
         const row = {
-            value: val1,
-            label: getOptionLabel(val1) || val1,
+            value: val1.value,
+            label: val1.label,
+            importance: val1.importance,
+            workflowCount: val1.workflowCount,
+            looseWorkflowCount: val1.looseWorkflowCount,
+            specificWorkflowCount: val1.specificWorkflowCount,
+            isCatchAll: val1.isCatchAll,
+            coverageType: val1.coverageType,
             cells: []
         };
-
-        dim2.values.forEach(val2 => {
-            // Check if this cell's combination is visible
-            const cellVisible = isCombinationVisible([dim1.field, dim2.field], [val1, val2]);
-            if (!cellVisible) {
-                // Skip cells that visibility rules prevent
+        
+        dim2Values.forEach((val2, idx2) => {
+            if (!val2 || !val2.value) {
+                console.error(`❌ ERROR: Invalid val2 at index ${idx2}:`, val2);
                 return;
             }
-
+            
+            // Check if this combination is actually visible (fields can appear together)
+            // For coverage analysis, we want to show ALL combinations by default
+            // Only mark as "not visible" if we can definitively prove it's not visible
+            let cellVisible = true;
+            
+            // For system fields like requestTypes/subjectTypes, check option-level visibility
+            const isSystemField = (fieldKey) => {
+                return fieldKey === 'requestTypes' || fieldKey === 'subjectTypes' || 
+                       !allFields.find(f => f.key === fieldKey);
+            };
+            
+            // Special handling for request type + "who" combinations
+            // Check if the request type is visible for the "who" selection
+            if (isSystemField(dim1.field) && dim1.field === 'requestTypes') {
+                // dim1 is request type, dim2 is "who"
+                const visibilityResult = isRequestTypeVisibleForWho(val1.value, dim2.field, val2.value);
+                if (visibilityResult === false) {
+                    // Definitively not visible
+                    cellVisible = false;
+                } else if (visibilityResult === true) {
+                    // Definitively visible
+                    cellVisible = true;
+                } else {
+                    // Uncertain (null) - default to visible for coverage analysis
+                    cellVisible = true;
+                }
+            } else if (isSystemField(dim2.field) && dim2.field === 'requestTypes') {
+                // dim2 is request type, dim1 is "who"
+                const visibilityResult = isRequestTypeVisibleForWho(val2.value, dim1.field, val1.value);
+                if (visibilityResult === false) {
+                    // Definitively not visible
+                    cellVisible = false;
+                } else if (visibilityResult === true) {
+                    // Definitively visible
+                    cellVisible = true;
+                } else {
+                    // Uncertain (null) - default to visible for coverage analysis
+                    cellVisible = true;
+                }
+            } else if (isSystemField(dim1.field) || isSystemField(dim2.field)) {
+                // Other system fields - always visible
+                cellVisible = true;
+            } else {
+                // For regular fields, use isCombinationVisible
+                cellVisible = isCombinationVisible([dim1.field, dim2.field], [val1.value, val2.value]);
+            }
+            
             // Test if any workflow triggers for this combination
+            // For request type dimension (dim1): Must match exactly - workflows must check this request type
+            // For "who" dimension (dim2): If workflow doesn't check it, it matches (loose rule)
             const triggeredWorkflows = workflowRules.filter(workflow => {
                 if (!workflow.ruleCriteria) return false;
-
-                // Check if this workflow covers both dimensions
-                const dim1Match = evaluateDimensionMatch(workflow, dim1.field, val1);
-                const dim2Match = evaluateDimensionMatch(workflow, dim2.field, val2);
-
+                
+                // Check if workflow has criteria for dimension 1 (request type)
+                const hasDim1Criteria = workflow.ruleCriteria.some(c => c.field === dim1.field);
+                let dim1Match = false;
+                if (hasDim1Criteria) {
+                    // Workflow checks this dimension - must match exactly
+                    dim1Match = evaluateDimensionMatch(workflow, dim1.field, val1.value);
+                } else {
+                    // Workflow doesn't check request type at all - doesn't match
+                    dim1Match = false;
+                }
+                
+                // Check if workflow has criteria for dimension 2 (who is making request)
+                const hasDim2Criteria = workflow.ruleCriteria.some(c => c.field === dim2.field);
+                let dim2Match = false;
+                if (hasDim2Criteria) {
+                    // Workflow checks this dimension - must match exactly
+                    dim2Match = evaluateDimensionMatch(workflow, dim2.field, val2.value);
+                } else {
+                    // Workflow doesn't check "who" dimension - matches any (loose rule)
+                    dim2Match = true;
+                }
+                
                 return dim1Match && dim2Match;
             });
-
+            
+            // Categorize triggered workflows
+            const looseWorkflows = triggeredWorkflows.filter(w => (w.ruleCriteria || []).length === 1);
+            const specificWorkflows = triggeredWorkflows.filter(w => (w.ruleCriteria || []).length > 1);
+            
             const cell = {
-                value: val2,
-                label: getOptionLabel(val2) || val2,
+                value: val2.value,
+                label: val2.label,
                 covered: triggeredWorkflows.length > 0,
+                isVisible: cellVisible,
                 workflowCount: triggeredWorkflows.length,
-                workflows: triggeredWorkflows.map(w => w.ruleName)
+                looseWorkflowCount: looseWorkflows.length,
+                specificWorkflowCount: specificWorkflows.length,
+                isCatchAllCoverage: looseWorkflows.length > 0 && specificWorkflows.length === 0,
+                workflows: triggeredWorkflows.map(w => w.ruleName),
+                looseWorkflows: looseWorkflows.map(w => w.ruleName),
+                specificWorkflows: specificWorkflows.map(w => w.ruleName)
             };
-
+            
             row.cells.push(cell);
+            
+            // Count all cells, but mark not-visible ones separately
+            // For coverage analysis, we want to see ALL combinations
             stats.total++;
             if (cell.covered) {
                 stats.covered++;
-            } else {
+                if (cell.isCatchAllCoverage) {
+                    stats.catchAllCovered++;
+                }
+            } else if (cellVisible) {
+                // Only count as gap if it's visible but not covered
                 stats.gaps++;
             }
+            // If not visible, it's marked as "not applicable" in the UI but not counted as a gap
+            // If not visible, it's "not applicable" - don't count it as a gap
+            
+            // Debug first few cells
+            if (idx1 < 2 && idx2 < 2) {
+                console.log(`   Cell [${idx1},${idx2}]: ${val1.label} × ${val2.label} - ${triggeredWorkflows.length} workflows`);
+            }
         });
-
-        // Only add row if it has cells
-        if (row.cells.length > 0) {
-            matrix.push(row);
+        
+        // Always add row, even if it has no cells (shouldn't happen now)
+        matrix.push(row);
+        if (idx1 === 0) {
+            console.log(`   First row has ${row.cells.length} cells, stats.total=${stats.total}`);
         }
     });
-
-    stats.coverage = ((stats.covered / stats.total) * 100).toFixed(1);
+    
+    console.log(`📊 Matrix summary: ${matrix.length} rows, ${stats.total} total cells, ${stats.covered} covered, ${stats.gaps} gaps`);
+    
+    if (stats.total === 0) {
+        console.error('❌ ERROR: No cells were added to matrix!');
+        console.error('   dim1Values:', dim1Values);
+        console.error('   dim2Values:', dim2Values);
+        console.error('   dim1.field:', dim1.field);
+        console.error('   dim2.field:', dim2.field);
+    }
+    
+    stats.coverage = stats.total > 0 ? ((stats.covered / stats.total) * 100).toFixed(1) : '0';
 
     console.log(`✅ Matrix built: ${stats.covered}/${stats.total} covered (${stats.coverage}%)`);
 
     return {
         matrix,
-        dimensions: [dim1, dim2],
+        dimensions: [
+            {
+                ...dim1,
+                values: dim1Values,
+                filteredCount: dim1Values.length,
+                totalAvailableValues: dim1.values.length
+            },
+            {
+                ...dim2,
+                values: dim2Values,
+                filteredCount: dim2Values.length,
+                totalAvailableValues: dim2.values.length
+            }
+        ],
         stats
     };
 }
 
 // Check if a dimension combination is actually visible (not prevented by visibility rules)
+// Returns true if visible, false if definitively not visible, or true if uncertain (optimistic)
 function isCombinationVisible(dimensionFields, dimensionValues) {
     // Create a mock selection with the given dimension values
     const mockSelections = {};
@@ -1712,22 +2175,38 @@ function isCombinationVisible(dimensionFields, dimensionValues) {
 
     // Check if both dimension fields are visible with these selections
     for (let i = 0; i < dimensionFields.length; i++) {
-        const field = allFields.find(f => f.key === dimensionFields[i]);
+        const fieldKey = dimensionFields[i];
+        const field = allFields.find(f => f.key === fieldKey);
+        
+        // Special handling for system fields like requestTypes/subjectTypes
+        // These are not in allFields but are always "visible" in the sense that they can be selected
         if (!field) {
-            // Field doesn't exist, assume it's visible
+            // Field doesn't exist in allFields - assume it's a system field and always visible
             continue;
         }
 
         // If field has no visibility rules, it's always visible
-        if (!field.visibilityRules || !field.visibilityRules.rules) {
+        if (!field.visibilityRules || !field.visibilityRules.rules || field.visibilityRules.rules.length === 0) {
             continue;
         }
 
         // Check if any visibility rule would show this field
         const rules = field.visibilityRules.rules;
         let isVisible = false;
+        let hasEvaluableRules = false;
 
         for (let rule of rules) {
+            // Check if this rule depends on fields we haven't set
+            const ruleFields = extractFieldsFromRule(rule);
+            const hasUnsetFields = ruleFields.some(f => !mockSelections.hasOwnProperty(f) && !currentSelections.hasOwnProperty(f));
+            
+            // If rule depends on unset fields, we can't evaluate it - default to visible (optimistic)
+            if (hasUnsetFields) {
+                continue; // Skip this rule, can't evaluate
+            }
+            
+            hasEvaluableRules = true;
+            
             // Temporarily set currentSelections for evaluateRule
             const originalSelections = Object.assign({}, currentSelections);
             Object.assign(currentSelections, mockSelections);
@@ -1743,13 +2222,128 @@ function isCombinationVisible(dimensionFields, dimensionValues) {
             }
         }
 
-        // If this dimension field is not visible, the combination is not valid
-        if (!isVisible) {
+        // If we have evaluable rules and none passed, the field is not visible
+        // If we have no evaluable rules (all depend on unset fields), default to visible (optimistic)
+        if (hasEvaluableRules && !isVisible) {
             return false;
         }
     }
 
-    return true;
+    return true; // Default to visible if uncertain
+}
+
+// Extract all field keys referenced in a visibility rule
+function extractFieldsFromRule(rule) {
+    const fields = new Set();
+    const conditions = rule.ruleConditions || [];
+    
+    conditions.forEach(condition => {
+        if (condition.selectedField) {
+            fields.add(condition.selectedField);
+        }
+    });
+    
+    return Array.from(fields);
+}
+
+// Check if a specific request type is visible for a given "who" selection
+// Returns true if visible, false if not visible, or null if uncertain
+function isRequestTypeVisibleForWho(requestTypeValue, whoFieldKey, whoValue) {
+    // Find the request type field in allFields
+    // Request type field might be named "requestType", "requestTypes", or similar
+    const requestTypeField = allFields.find(f => 
+        f.key === 'requestType' || 
+        f.key === 'requestTypes' ||
+        f.key.toLowerCase().includes('requesttype')
+    );
+    
+    if (!requestTypeField) {
+        // Can't find request type field, assume visible (uncertain)
+        return null;
+    }
+    
+    // Check if the request type field has visibility rules that depend on the "who" field
+    if (!requestTypeField.visibilityRules || !requestTypeField.visibilityRules.rules) {
+        // No visibility rules, assume all request types are visible
+        return null;
+    }
+    
+    // Create mock selections with the "who" value
+    const mockSelections = {};
+    mockSelections[whoFieldKey] = whoValue;
+    
+    // Check if any visibility rule would show/hide the request type field
+    const rules = requestTypeField.visibilityRules.rules;
+    let fieldVisible = false;
+    let hasEvaluableRules = false;
+    let visibleOptions = null; // Track which options are visible if rule specifies them
+    
+    for (let rule of rules) {
+        // Check if this rule depends on the "who" field
+        const ruleFields = extractFieldsFromRule(rule);
+        const dependsOnWho = ruleFields.includes(whoFieldKey);
+        
+        if (!dependsOnWho) {
+            // Rule doesn't depend on "who" field, skip it
+            continue;
+        }
+        
+        hasEvaluableRules = true;
+        
+        // Temporarily set currentSelections for evaluateRule
+        const originalSelections = Object.assign({}, currentSelections);
+        Object.assign(currentSelections, mockSelections);
+        
+        const ruleResult = evaluateRule(rule);
+        
+        // Restore original selections
+        Object.assign(currentSelections, originalSelections);
+        
+        if (ruleResult) {
+            fieldVisible = true;
+            // Check if this rule specifies which options should be shown
+            const action = rule.actions?.[0];
+            if (action && action.action === 'SHOW_QUESTION_WITH_CONFIGURED_OPTIONS' && action.selectedOptions) {
+                // This rule specifies which options are visible
+                visibleOptions = action.selectedOptions;
+            }
+            break;
+        }
+    }
+    
+    // If we have evaluable rules and none passed, the field is not visible
+    // This means NO request types are visible for this "who" selection
+    if (hasEvaluableRules && !fieldVisible) {
+        return false; // Field is not visible, so no request types are available
+    }
+    
+    // If a rule specifies which options are visible, check if this request type is in that list
+    if (visibleOptions && visibleOptions.length > 0) {
+        // Get request types from webform data to map GUIDs to fieldNames
+        const requestTypes = webformData?.webFormDto?.requestTypes || [];
+        const guidToFieldName = {};
+        requestTypes.forEach(rt => {
+            if (rt.id) guidToFieldName[rt.id] = rt.fieldName;
+            if (rt.fieldName) guidToFieldName[rt.fieldName] = rt.fieldName; // Also map fieldName to itself
+        });
+        
+        // Convert requestTypeValue to fieldName if it's a GUID
+        const requestTypeFieldName = guidToFieldName[requestTypeValue] || requestTypeValue;
+        
+        // Check if the request type fieldName is in the visible options
+        // visibleOptions might contain GUIDs or fieldNames
+        const isVisible = visibleOptions.some(opt => {
+            // Convert option to fieldName if it's a GUID
+            const optFieldName = guidToFieldName[opt] || opt;
+            // Match if the fieldNames match
+            return optFieldName === requestTypeFieldName;
+        });
+        
+        return isVisible;
+    }
+    
+    // If field is visible but no specific options are specified, assume all request types are visible
+    return hasEvaluableRules ? fieldVisible : null; // Return null if uncertain
 }
 
 // Build single dimension view (when workflows only use one criteria field)
@@ -1801,10 +2395,15 @@ function buildSingleDimensionView(dimension, criteriaMap) {
 }
 
 // Helper: Check if a workflow matches a dimension value
+// If a workflow doesn't check a dimension, it's considered a match (workflow doesn't care about that dimension)
 function evaluateDimensionMatch(workflow, dimensionField, dimensionValue) {
     const criterion = workflow.ruleCriteria?.find(c => c.field === dimensionField);
-    if (!criterion) return false; // This workflow doesn't use this dimension
-
+    if (!criterion) {
+        // This workflow doesn't check this dimension at all
+        // For loose/catch-all workflows, this means they match ANY value for this dimension
+        return true; // Workflow doesn't care about this dimension, so it matches
+    }
+    
     return criterion.values.includes(dimensionValue);
 }
 
@@ -1812,20 +2411,294 @@ function evaluateDimensionMatch(workflow, dimensionField, dimensionValue) {
 function generateSmartCoverageDiagram() {
     console.log('� Generating smart coverage diagram...');
 
-    const coverageData = buildDynamicCoverageMatrix();
-    if (!coverageData) return;
-
-    let diagramHTML;
-    if (coverageData.isSingleDimension) {
-        diagramHTML = buildSingleDimensionDiagramHTML(coverageData);
-    } else {
-        diagramHTML = buildSmartDiagramHTML(coverageData);
+    const analysis = analyzeWorkflowCoverage();
+    if (!analysis) {
+        alert('⚠️ Could not generate coverage analysis. Make sure workflows are loaded.');
+        return;
     }
 
+    const diagramHTML = buildWorkflowCoverageHTML(analysis);
+
     // Open in new window
-    const newWindow = window.open('', 'SmartCoverageMatrix', 'width=1200,height=800');
+    const newWindow = window.open('', 'WorkflowCoverage', 'width=1400,height=900');
     newWindow.document.write(diagramHTML);
     newWindow.document.close();
+}
+
+// NEW: Workflow-based coverage analysis (no visibility checks)
+function analyzeWorkflowCoverage() {
+    if (!workflowRules || workflowRules.length === 0) {
+        console.warn('⚠️ No workflow rules found');
+        return null;
+    }
+
+    console.log(`📋 Analyzing ${workflowRules.length} workflow rules...`);
+
+    // Step 1: Analyze what criteria fields are used
+    const criteriaFields = new Map(); // field -> { workflows: [], values: Set }
+    
+    workflowRules.forEach(workflow => {
+        if (!workflow.ruleCriteria || workflow.ruleCriteria.length === 0) {
+            console.log(`   ⚠️ Workflow "${workflow.ruleName}" has no criteria`);
+            return;
+        }
+
+        workflow.ruleCriteria.forEach(criterion => {
+            const field = criterion.field;
+            if (!criteriaFields.has(field)) {
+                criteriaFields.set(field, {
+                    field: field,
+                    label: getFieldLabel(field) || field,
+                    workflows: [],
+                    values: new Set(),
+                    workflowDetails: []
+                });
+            }
+            
+            const fieldData = criteriaFields.get(field);
+            fieldData.workflows.push(workflow.ruleName);
+            criterion.values.forEach(v => fieldData.values.add(v));
+            fieldData.workflowDetails.push({
+                workflowName: workflow.ruleName,
+                values: criterion.values,
+                isLoose: workflow.ruleCriteria.length === 1
+            });
+        });
+    });
+
+    // Step 2: Rank fields by importance (number of workflows using them)
+    const rankedFields = Array.from(criteriaFields.values())
+        .sort((a, b) => b.workflows.length - a.workflows.length);
+
+    console.log(`   Found ${rankedFields.length} criteria fields:`);
+    rankedFields.forEach((f, idx) => {
+        console.log(`   ${idx + 1}. ${f.label} (${f.workflows.length} workflows, ${f.values.size} values)`);
+    });
+
+    // Step 3: For each workflow, show what it covers
+    const workflowCoverage = workflowRules.map(workflow => {
+        const criteria = workflow.ruleCriteria || [];
+        const isLoose = criteria.length === 1;
+        const isSpecific = criteria.length > 1;
+        
+        // Build a description of what this workflow covers
+        const coverageDescription = criteria.map(c => {
+            const fieldLabel = getFieldLabel(c.field) || c.field;
+            const valueLabels = c.values.map(v => getOptionLabel(v) || v).join(', ');
+            return `${fieldLabel}: ${valueLabels}`;
+        }).join(' AND ');
+
+        // Check if any criteria were decrypted from hashes
+        const hasDecryptedCriteria = criteria.some(c => c.decrypted === true);
+        const decryptedFields = criteria.filter(c => c.decrypted === true).map(c => c.field);
+
+        return {
+            name: workflow.ruleName,
+            criteria: criteria,
+            coverageDescription: coverageDescription,
+            isLoose: isLoose,
+            isSpecific: isSpecific,
+            criteriaCount: criteria.length,
+            hasDecryptedCriteria: hasDecryptedCriteria,
+            decryptedFields: decryptedFields
+        };
+    });
+
+    // Step 4: Identify potential gaps (if we have 2+ dimensions)
+    let gaps = [];
+    if (rankedFields.length >= 2) {
+        const topField = rankedFields[0];
+        const secondField = rankedFields[1];
+        
+        // Get all combinations from the top 2 fields
+        const allCombinations = [];
+        topField.values.forEach(v1 => {
+            secondField.values.forEach(v2 => {
+                allCombinations.push({
+                    [topField.field]: v1,
+                    [secondField.field]: v2
+                });
+            });
+        });
+
+        // Check which combinations have no workflow
+        allCombinations.forEach(combo => {
+            const hasWorkflow = workflowRules.some(workflow => {
+                if (!workflow.ruleCriteria) return false;
+                
+                // Check if workflow matches this combination
+                const matchesTop = !workflow.ruleCriteria.some(c => c.field === topField.field) ||
+                    workflow.ruleCriteria.find(c => c.field === topField.field)?.values.includes(combo[topField.field]);
+                const matchesSecond = !workflow.ruleCriteria.some(c => c.field === secondField.field) ||
+                    workflow.ruleCriteria.find(c => c.field === secondField.field)?.values.includes(combo[secondField.field]);
+                
+                return matchesTop && matchesSecond;
+            });
+
+            if (!hasWorkflow) {
+                const v1Label = getOptionLabel(combo[topField.field]) || combo[topField.field];
+                const v2Label = getOptionLabel(combo[secondField.field]) || combo[secondField.field];
+                gaps.push({
+                    [topField.field]: combo[topField.field],
+                    [topField.field + 'Label']: v1Label,
+                    [secondField.field]: combo[secondField.field],
+                    [secondField.field + 'Label']: v2Label
+                });
+            }
+        });
+    }
+
+    return {
+        totalWorkflows: workflowRules.length,
+        criteriaFields: rankedFields,
+        workflowCoverage: workflowCoverage,
+        gaps: gaps,
+        templateName: webformData?.webFormDto?.templateName || 'DSAR Form',
+        timestamp: new Date().toLocaleString()
+    };
+}
+
+// Build HTML for workflow coverage analysis
+function buildWorkflowCoverageHTML(analysis) {
+    const { totalWorkflows, criteriaFields, workflowCoverage, gaps, templateName, timestamp } = analysis;
+
+    // Build workflow list HTML
+    let workflowsHTML = '';
+    workflowCoverage.forEach((wf, idx) => {
+        const typeBadge = wf.isLoose 
+            ? '<span style="background: #3498db; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; margin-left: 8px;">LOOSE</span>'
+            : '<span style="background: #27ae60; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; margin-left: 8px;">SPECIFIC</span>';
+        
+        const criteriaHTML = wf.criteria.map(c => {
+            const fieldLabel = getFieldLabel(c.field) || c.field;
+            const valueLabels = c.values.map(v => getOptionLabel(v) || v).join(', ');
+            // Show HASHED badge if the field was originally hashed (either decrypted or still hashed)
+            const wasHashed = c.isHashed === true || c.decrypted === true;
+            const hashBadge = wasHashed 
+                ? `<span style="background: #e67e22; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.7rem; margin-left: 6px;" title="${c.decrypted ? 'This field was originally hashed (SHA-512) and has been decrypted' : 'This field contains hashed values (SHA-512) that could not be decrypted'}">🔐 HASHED</span>`
+                : '';
+            return `<div style="margin-left: 1.5rem; margin-top: 0.5rem; color: #555;">
+                <strong>${fieldLabel}:</strong> ${valueLabels} ${hashBadge}
+            </div>`;
+        }).join('');
+
+        workflowsHTML += `
+            <div style="background: white; padding: 1.5rem; border-radius: 8px; border-left: 4px solid ${wf.isLoose ? '#3498db' : '#27ae60'}; margin-bottom: 1rem;">
+                <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                    <strong style="font-size: 1.1rem;">${wf.name}</strong>
+                    ${typeBadge}
+                </div>
+                <div style="color: #7f8c8d; font-size: 0.9rem; margin-top: 0.5rem;">
+                    <strong>Coverage:</strong> ${wf.coverageDescription}
+                </div>
+                ${criteriaHTML}
+            </div>
+        `;
+    });
+
+    // Build gaps HTML
+    let gapsHTML = '';
+    if (gaps.length > 0) {
+        const field1 = criteriaFields[0];
+        const field2 = criteriaFields[1];
+        gapsHTML = gaps.map(gap => {
+            return `
+                <div style="background: #fadbd8; padding: 1rem; border-radius: 6px; border-left: 4px solid #e74c3c; margin-bottom: 0.5rem;">
+                    <strong>${gap[field1.field + 'Label']}</strong> × <strong>${gap[field2.field + 'Label']}</strong>
+                    <div style="color: #c0392b; font-size: 0.85rem; margin-top: 0.25rem;">No workflow configured</div>
+                </div>
+            `;
+        }).join('');
+    } else {
+        gapsHTML = '<div style="color: #27ae60; font-style: italic;">✅ All combinations appear to be covered</div>';
+    }
+
+    // Build criteria fields summary
+    let fieldsHTML = '';
+    criteriaFields.forEach((field, idx) => {
+        const valuesList = Array.from(field.values).map(v => getOptionLabel(v) || v).join(', ');
+        fieldsHTML += `
+            <div style="background: white; padding: 1rem; border-radius: 6px; border-left: 4px solid #FFD700; margin-bottom: 1rem;">
+                <strong>${idx + 1}. ${field.label}</strong>
+                <div style="color: #7f8c8d; font-size: 0.85rem; margin-top: 0.5rem;">
+                    Used by ${field.workflows.length} workflow(s) | ${field.values.size} value(s)
+                </div>
+                <div style="color: #555; font-size: 0.85rem; margin-top: 0.5rem;">
+                    Values: ${valuesList}
+                </div>
+            </div>
+        `;
+    });
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+    <title>Workflow Coverage Analysis - ${templateName}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "Segoe UI", Tahoma, Geneva, sans-serif; background: #f5f7fa; padding: 2rem; color: #2c3e50; line-height: 1.6; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .header { margin-bottom: 2rem; border-bottom: 3px solid #FFD700; padding-bottom: 1rem; }
+        .header h1 { font-size: 2rem; color: #2c3e50; margin-bottom: 0.5rem; }
+        .header p { color: #7f8c8d; font-size: 0.9rem; }
+        .section { margin-bottom: 3rem; }
+        .section-title { font-size: 1.5rem; color: #2c3e50; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #ecf0f1; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #FFD700; }
+        .stat-label { color: #7f8c8d; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; }
+        .stat-value { font-size: 2rem; font-weight: bold; color: #2c3e50; margin-top: 0.5rem; }
+        .print-button { background: #FFD700; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-size: 1rem; margin-bottom: 1rem; }
+        @media print { body { background: white; } .print-button { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Workflow Coverage Analysis</h1>
+            <p><strong>Form:</strong> ${templateName}</p>
+            <p><strong>Generated:</strong> ${timestamp}</p>
+            <p style="color: #27ae60; margin-top: 0.5rem;">✅ Analysis based on workflow rules only (no visibility checks)</p>
+        </div>
+        
+        <button class="print-button" onclick="window.print()">🖨️ Print / Save as PDF</button>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-label">Total Workflows</div>
+                <div class="stat-value">${totalWorkflows}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Criteria Fields</div>
+                <div class="stat-value">${criteriaFields.length}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Potential Gaps</div>
+                <div class="stat-value" style="color: ${gaps.length > 0 ? '#e74c3c' : '#27ae60'};">${gaps.length}</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">📋 Criteria Fields Used</h2>
+            ${fieldsHTML}
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">🔧 Workflow Coverage</h2>
+            ${workflowsHTML}
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">⚠️ Potential Gaps</h2>
+            <p style="color: #7f8c8d; margin-bottom: 1rem;">
+                Combinations that may not have a workflow (based on top 2 criteria fields):
+            </p>
+            ${gapsHTML}
+        </div>
+    </div>
+</body>
+</html>`;
+
+    return html;
 }
 
 // Build HTML for single dimension view
@@ -1931,14 +2804,30 @@ function buildSmartDiagramHTML(coverageData) {
     const timestamp = new Date().toLocaleString();
     const templateName = webformData.webFormDto?.templateName || 'DSAR Form';
 
-    // Build header columns
-    const headerCols = dim2.values.map(val => '<th>' + (getOptionLabel(val) || val) + '</th>').join('');
+    // Build header columns with catch-all indicators
+    const headerCols = dim2.values.map(val => {
+        let badge = '';
+        if (val.isCatchAll) {
+            badge = '<span style="background: #3498db; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.7rem; margin-left: 4px;" title="Catch-all rule - covers all cases">CATCH-ALL</span>';
+        } else if (val.looseWorkflowCount > 0) {
+            badge = '<span style="background: #9b59b6; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.7rem; margin-left: 4px;" title="Has catch-all coverage">LOOSE</span>';
+        }
+        return '<th>' + val.label + ' <small style="color: #7f8c8d;">(' + val.workflowCount + ')</small>' + badge + '</th>';
+    }).join('');
 
     // Build table rows with expandable workflow details
     let cellId = 0;
     const tableRows = matrix.map(row => {
         const cells = row.cells.map(cell => {
-            const cellClass = cell.covered ? 'cell-covered' : 'cell-gap';
+            // Determine cell class: covered, gap, catch-all, or not applicable
+            let cellClass;
+            if (cell.isVisible === false) {
+                cellClass = 'cell-not-applicable'; // Field combination not visible
+            } else if (cell.covered) {
+                cellClass = cell.isCatchAllCoverage ? 'cell-catchall' : 'cell-covered';
+            } else {
+                cellClass = 'cell-gap';
+            }
             const cellIdStr = 'cell-' + (cellId++);
             const dropdownId = 'dropdown-' + cellIdStr;
 
@@ -1946,9 +2835,20 @@ function buildSmartDiagramHTML(coverageData) {
             let workflowsHtml = '';
             if (cell.workflows.length > 0) {
                 workflowsHtml = '<div class="workflow-dropdown" id="' + dropdownId + '" style="display:none; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.1);">';
-                cell.workflows.forEach(wf => {
-                    workflowsHtml += '<div style="font-size: 0.75rem; padding: 4px 0; color: #2c3e50;">• ' + wf + '</div>';
-                });
+                if (cell.looseWorkflows.length > 0) {
+                    workflowsHtml += '<div style="font-size: 0.7rem; color: #3498db; font-weight: bold; margin-bottom: 4px;">Catch-All Workflows:</div>';
+                    cell.looseWorkflows.forEach(wf => {
+                        workflowsHtml += '<div style="font-size: 0.75rem; padding: 2px 0; color: #2c3e50; padding-left: 12px;">• ' + wf + '</div>';
+                    });
+                }
+                if (cell.specificWorkflows.length > 0) {
+                    if (cell.looseWorkflows.length > 0) {
+                        workflowsHtml += '<div style="font-size: 0.7rem; color: #7f8c8d; font-weight: bold; margin-top: 8px; margin-bottom: 4px;">Specific Workflows:</div>';
+                    }
+                    cell.specificWorkflows.forEach(wf => {
+                        workflowsHtml += '<div style="font-size: 0.75rem; padding: 2px 0; color: #2c3e50; padding-left: 12px;">• ' + wf + '</div>';
+                    });
+                }
                 workflowsHtml += '</div>';
             } else {
                 workflowsHtml = '<div class="workflow-dropdown" id="' + dropdownId + '" style="display:none; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.1); color: #e74c3c; font-style: italic;">No workflows configured</div>';
@@ -1956,11 +2856,30 @@ function buildSmartDiagramHTML(coverageData) {
 
             // Make clickable if there are workflows or it's a gap
             const clickableAttr = ' onclick="toggleWorkflows(\'' + dropdownId + '\')" style="cursor: pointer;"';
-            const summary = '<strong>' + cell.workflowCount + '</strong><br><small>' + (cell.workflowCount === 1 ? 'workflow' : 'workflows') + '</small>' + (cell.workflows.length > 1 ? '<br><small style="color: #2c3e50; font-weight: 500;">Click to expand</small>' : '');
+            let summary = '';
+            if (!cell.isVisible) {
+                summary = '<strong style="color: #95a5a6;">N/A</strong><br><small>Not visible</small>';
+            } else if (cell.covered) {
+                if (cell.isCatchAllCoverage) {
+                    summary = '<strong style="color: #3498db;">Catch-All</strong><br><small>Loose rule</small>';
+                } else {
+                    summary = '<strong>' + cell.workflowCount + '</strong><br><small>' + (cell.workflowCount === 1 ? 'workflow' : 'workflows') + '</small>';
+                }
+                if (cell.workflows.length > 1) {
+                    summary += '<br><small style="color: #2c3e50; font-weight: 500;">Click to expand</small>';
+                }
+            } else {
+                summary = '<strong>Gap</strong>';
+            }
 
             return '<td id="' + cellIdStr + '" class="' + cellClass + '"' + clickableAttr + '>' + summary + workflowsHtml + '</td>';
         }).join('');
-        return '<tr><td class="row-header">' + row.label + '</td>' + cells + '</tr>';
+        let rowHeader = row.label;
+        if (row.isCatchAll) {
+            rowHeader += ' <span style="background: #3498db; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.7rem; margin-left: 4px;">CATCH-ALL</span>';
+        }
+        rowHeader += ' <small style="color: #7f8c8d;">(' + row.workflowCount + ')</small>';
+        return '<tr><td class="row-header">' + rowHeader + '</td>' + cells + '</tr>';
     }).join('');
 
     const html = '<!DOCTYPE html><html><head><title>Smart Coverage Analysis - ' + templateName + '</title><style>' +
@@ -1977,7 +2896,9 @@ function buildSmartDiagramHTML(coverageData) {
         'th { background: #34495e; color: white; font-weight: 600; }' +
         '.row-header { text-align: left; font-weight: 600; background: #f8f9fa; color: #2c3e50; }' +
         '.cell-covered { background: #d5f4e6; border-left: 4px solid #27ae60; }' +
+        '.cell-catchall { background: #d6eaf8; border-left: 4px solid #3498db; }' +
         '.cell-gap { background: #fadbd8; border-left: 4px solid #e74c3c; }' +
+        '.cell-not-applicable { background: #f5f5f5; border-left: 4px solid #95a5a6; opacity: 0.6; }' +
         '.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }' +
         '.stat-card { background: #f8f9fa; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #FFD700; }' +
         '.stat-label { color: #7f8c8d; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; }' +
@@ -2016,7 +2937,9 @@ function buildSmartDiagramHTML(coverageData) {
         '<h3 style="color: #2c3e50; margin-bottom: 1rem;">What This Shows</h3>' +
         '<ul style="margin-left: 1.5rem; line-height: 1.8; color: #555;">' +
         '<li><strong>Green cells (✅):</strong> Workflow exists to handle this combination</li>' +
+        '<li><strong>Blue cells (🔵):</strong> Catch-all rule - loose workflow that doesn\'t check all dimensions</li>' +
         '<li><strong>Red cells (❌):</strong> Gap - no workflow configured for this combination</li>' +
+        '<li><strong>Gray cells (⚪):</strong> Not Applicable - field combination not visible (visibility rules prevent it)</li>' +
         '<li><strong>Dimensions:</strong> Automatically selected from workflow criteria (most frequently used)</li>' +
         '</ul></div>' +
         '</div>' +
@@ -2269,6 +3192,349 @@ function detectWorkflowGaps() {
         gapCount: gaps.length,
         coverage_percentage: ((combinations.length - gaps.length) / combinations.length * 100).toFixed(1)
     };
+}
+
+// Analyze workflow rule ordering - detect when general rules come before specific ones
+function analyzeWorkflowRuleOrdering() {
+    const issues = [];
+    
+    // Calculate specificity score for each workflow
+    // More criteria = more specific
+    // Fewer values per criterion = more specific
+    const workflowsWithScores = workflowRules.map((workflow, index) => {
+        const criteria = workflow.ruleCriteria || [];
+        const criteriaCount = criteria.length;
+        
+        // Calculate specificity: more criteria = more specific
+        // Also consider: fewer values per criterion = more specific
+        let specificityScore = criteriaCount * 10; // Base score from criteria count
+        
+        criteria.forEach(criterion => {
+            const valueCount = (criterion.values || []).length;
+            // Fewer values = more specific (e.g., 1 value is more specific than 10 values)
+            specificityScore += (100 / Math.max(valueCount, 1));
+        });
+        
+        return {
+            workflow,
+            originalIndex: index,
+            specificityScore,
+            criteriaCount,
+            ruleSequence: workflow.ruleSequence || index
+        };
+    });
+    
+    // Sort by specificity (most specific first)
+    const sortedBySpecificity = [...workflowsWithScores].sort((a, b) => b.specificityScore - a.specificityScore);
+    
+    // Check current order vs optimal order
+    // Also check if one rule's criteria is a subset of another (the real problem)
+    workflowsWithScores.forEach((current, currentIndex) => {
+        const optimalIndex = sortedBySpecificity.findIndex(s => s.workflow.ruleName === current.workflow.ruleName);
+        
+        // Check all rules that come before this one
+        for (let i = 0; i < currentIndex; i++) {
+            const earlierRule = workflowsWithScores[i];
+            
+            // Check if current rule's criteria is a subset of earlier rule's criteria
+            // This means the earlier rule will always match when current rule matches
+            const currentFields = new Set(current.workflow.ruleCriteria.map(c => c.field));
+            const earlierFields = new Set(earlierRule.workflow.ruleCriteria.map(c => c.field));
+            
+            // If current rule has all fields from earlier rule, check if values overlap
+            const isSubset = Array.from(earlierFields).every(field => currentFields.has(field));
+            
+            if (isSubset && earlierFields.size < currentFields.size) {
+                // Current rule is more specific (has more criteria)
+                // Check if earlier rule would match when current rule matches
+                let wouldBlock = true;
+                earlierRule.workflow.ruleCriteria.forEach(earlierCriterion => {
+                    const currentCriterion = current.workflow.ruleCriteria.find(c => c.field === earlierCriterion.field);
+                    if (currentCriterion) {
+                        // Check if there's any overlap in values
+                        const overlap = earlierCriterion.values.some(v => currentCriterion.values.includes(v));
+                        if (!overlap) {
+                            wouldBlock = false;
+                        }
+                    }
+                });
+                
+                if (wouldBlock) {
+                    issues.push({
+                        type: 'ORDERING_ISSUE',
+                        severity: 'HIGH',
+                        currentRule: current.workflow.ruleName,
+                        currentIndex: currentIndex + 1,
+                        blockingRule: earlierRule.workflow.ruleName,
+                        blockingIndex: earlierRule.originalIndex + 1,
+                        message: `Rule "${earlierRule.workflow.ruleName}" (${earlierRule.criteriaCount} criteria) will always trigger before "${current.workflow.ruleName}" (${current.criteriaCount} criteria) because it's less specific. Move the more specific rule first.`,
+                        currentCriteria: current.workflow.ruleCriteria.map(c => `${c.field}=${c.values.join('|')}`).join(' & '),
+                        blockingCriteria: earlierRule.workflow.ruleCriteria.map(c => `${c.field}=${c.values.join('|')}`).join(' & ')
+                    });
+                }
+            }
+        }
+        
+        // Also check if this rule should come earlier based on specificity
+        if (optimalIndex < currentIndex) {
+            const blockingRule = workflowsWithScores[currentIndex - 1];
+            if (blockingRule && !issues.some(i => i.currentRule === current.workflow.ruleName && i.blockingRule === blockingRule.workflow.ruleName)) {
+                issues.push({
+                    type: 'ORDERING_ISSUE',
+                    severity: 'MEDIUM',
+                    currentRule: current.workflow.ruleName,
+                    currentIndex: currentIndex + 1,
+                    blockingRule: blockingRule.workflow.ruleName,
+                    blockingIndex: blockingRule.originalIndex + 1,
+                    message: `Rule "${current.workflow.ruleName}" (${current.criteriaCount} criteria, specificity: ${current.specificityScore.toFixed(1)}) is more specific than "${blockingRule.workflow.ruleName}" (${blockingRule.criteriaCount} criteria, specificity: ${blockingRule.specificityScore.toFixed(1)}) but comes after it.`,
+                    currentCriteria: current.workflow.ruleCriteria.map(c => `${c.field}=${c.values.join('|')}`).join(' & '),
+                    blockingCriteria: blockingRule.workflow.ruleCriteria.map(c => `${c.field}=${c.values.join('|')}`).join(' & ')
+                });
+            }
+        }
+    });
+    
+    return {
+        currentOrder: workflowsWithScores.map(w => ({
+            name: w.workflow.ruleName,
+            index: w.originalIndex + 1,
+            criteriaCount: w.criteriaCount,
+            specificityScore: w.specificityScore.toFixed(1)
+        })),
+        suggestedOrder: sortedBySpecificity.map((w, idx) => ({
+            name: w.workflow.ruleName,
+            suggestedIndex: idx + 1,
+            currentIndex: w.originalIndex + 1,
+            criteriaCount: w.criteriaCount,
+            specificityScore: w.specificityScore.toFixed(1)
+        })),
+        issues
+    };
+}
+
+// Simple typo detection - check common spelling mistakes
+function detectTypos() {
+    const typos = [];
+    const commonTypos = {
+        'recieve': 'receive',
+        'seperate': 'separate',
+        'occured': 'occurred',
+        'accomodate': 'accommodate',
+        'definately': 'definitely',
+        'authorised': 'authorized',
+        'authorisation': 'authorization',
+        'organise': 'organize',
+        'organised': 'organized',
+        'cancelled': 'canceled',
+        'travelling': 'traveling',
+        'labelled': 'labeled',
+        'fulfil': 'fulfill',
+        'fulfilment': 'fulfillment',
+        'adress': 'address',
+        'adres': 'address',
+        'phonenumber': 'phone number',
+        'phonenum': 'phone number',
+        'emailadress': 'email address',
+        'emailadres': 'email address'
+    };
+    
+    // Check all field labels
+    allFields.forEach(field => {
+        const text = (field.label || '').toLowerCase();
+        Object.keys(commonTypos).forEach(typo => {
+            if (text.includes(typo)) {
+                typos.push({
+                    type: 'TYPO',
+                    location: 'Field Label',
+                    fieldKey: field.key,
+                    fieldLabel: field.label,
+                    found: typo,
+                    suggestion: commonTypos[typo],
+                    context: field.label
+                });
+            }
+        });
+        
+        // Check field description
+        if (field.description) {
+            const descText = field.description.toLowerCase();
+            Object.keys(commonTypos).forEach(typo => {
+                if (descText.includes(typo)) {
+                    typos.push({
+                        type: 'TYPO',
+                        location: 'Field Description',
+                        fieldKey: field.key,
+                        fieldLabel: field.label,
+                        found: typo,
+                        suggestion: commonTypos[typo],
+                        context: field.description
+                    });
+                }
+            });
+        }
+    });
+    
+    // Check workflow rule names
+    workflowRules.forEach(workflow => {
+        const text = (workflow.ruleName || '').toLowerCase();
+        Object.keys(commonTypos).forEach(typo => {
+            if (text.includes(typo)) {
+                typos.push({
+                    type: 'TYPO',
+                    location: 'Workflow Rule Name',
+                    fieldKey: workflow.ruleName,
+                    fieldLabel: workflow.ruleName,
+                    found: typo,
+                    suggestion: commonTypos[typo],
+                    context: workflow.ruleName
+                });
+            }
+        });
+    });
+    
+    return typos;
+}
+
+// Detect fields that are never shown or not configured in visibility rules
+function detectUnusedFields() {
+    const unusedFields = [];
+    
+    allFields.forEach(field => {
+        // Check if field is disabled
+        const isEnabled = field.isSelected === true && field.status !== 20;
+        
+        if (!isEnabled) {
+            unusedFields.push({
+                fieldKey: field.key,
+                fieldLabel: field.label,
+                reason: 'DISABLED',
+                message: `Field is disabled (isSelected=${field.isSelected}, status=${field.status})`,
+                severity: 'MEDIUM'
+            });
+            return;
+        }
+        
+        // Check if field has visibility rules but they might never match
+        if (field.hasVisibilityRule) {
+            const rules = field.visibilityRules?.rules || [];
+            if (rules.length === 0) {
+                unusedFields.push({
+                    fieldKey: field.key,
+                    fieldLabel: field.label,
+                    reason: 'NO_VISIBILITY_RULES',
+                    message: 'Field has visibility rule flag but no actual rules configured - will never be shown',
+                    severity: 'HIGH'
+                });
+                return;
+            }
+            
+            // Check if visibility rules reference fields that don't exist
+            rules.forEach(rule => {
+                const ruleConditions = rule.ruleConditions || [];
+                ruleConditions.forEach(condition => {
+                    const referencedField = condition.selectedField;
+                    const fieldExists = allFields.some(f => f.key === referencedField);
+                    if (!fieldExists) {
+                        unusedFields.push({
+                            fieldKey: field.key,
+                            fieldLabel: field.label,
+                            reason: 'INVALID_REFERENCE',
+                            message: `Visibility rule references non-existent field: "${referencedField}"`,
+                            severity: 'HIGH',
+                            referencedField: referencedField
+                        });
+                    }
+                });
+            });
+        }
+    });
+    
+    return unusedFields;
+}
+
+// Show analysis report in a modal/dialog
+function showAnalysisReport() {
+    const orderingAnalysis = analyzeWorkflowRuleOrdering();
+    const typos = detectTypos();
+    const unusedFields = detectUnusedFields();
+    
+    let report = '<div style="max-width: 1200px; margin: 0 auto; padding: 2rem; background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">';
+    report += '<h1 style="color: #2c3e50; margin-bottom: 2rem;">Analysis Report</h1>';
+    
+    // Workflow Ordering Issues
+    report += '<div style="margin-bottom: 2rem; padding: 1.5rem; background: #fff9e6; border: 2px solid #f39c12; border-radius: 8px;">';
+    report += '<h2 style="color: #f39c12; margin-bottom: 1rem;">Workflow Rule Ordering</h2>';
+    if (orderingAnalysis.issues.length > 0) {
+        report += `<p style="color: #e74c3c; font-weight: bold;">⚠️ Found ${orderingAnalysis.issues.length} ordering issue(s)</p>`;
+        report += '<table style="width: 100%; border-collapse: collapse; margin-top: 1rem;">';
+        report += '<tr style="background: #ecf0f1;"><th style="padding: 0.5rem; text-align: left;">Current Rule</th><th style="padding: 0.5rem; text-align: left;">Position</th><th style="padding: 0.5rem; text-align: left;">Blocking Rule</th><th style="padding: 0.5rem; text-align: left;">Issue</th></tr>';
+        orderingAnalysis.issues.forEach(issue => {
+            report += `<tr style="border-bottom: 1px solid #ddd;"><td style="padding: 0.5rem;">${issue.currentRule}</td><td style="padding: 0.5rem;">#${issue.currentIndex}</td><td style="padding: 0.5rem;">${issue.blockingRule}</td><td style="padding: 0.5rem; color: #e74c3c;">${issue.message}</td></tr>`;
+        });
+        report += '</table>';
+        
+        report += '<h3 style="margin-top: 1.5rem; color: #2c3e50;">Suggested Order (Most Specific First)</h3>';
+        report += '<ol style="padding-left: 1.5rem;">';
+        orderingAnalysis.suggestedOrder.forEach(item => {
+            const moved = item.currentIndex !== item.suggestedIndex;
+            report += `<li style="margin: 0.5rem 0; ${moved ? 'color: #e74c3c; font-weight: bold;' : ''}">${item.name} (${item.criteriaCount} criteria, specificity: ${item.specificityScore})${moved ? ` ← Currently at position #${item.currentIndex}` : ''}</li>`;
+        });
+        report += '</ol>';
+    } else {
+        report += '<p style="color: #27ae60; font-weight: bold;">✅ No ordering issues found - rules are properly ordered from most specific to least specific</p>';
+    }
+    report += '</div>';
+    
+    // Typos
+    report += '<div style="margin-bottom: 2rem; padding: 1.5rem; background: #e8f5e9; border: 2px solid #27ae60; border-radius: 8px;">';
+    report += '<h2 style="color: #27ae60; margin-bottom: 1rem;">Typo Detection</h2>';
+    if (typos.length > 0) {
+        report += `<p style="color: #e74c3c; font-weight: bold;">⚠️ Found ${typos.length} typo(s)</p>`;
+        report += '<table style="width: 100%; border-collapse: collapse; margin-top: 1rem;">';
+        report += '<tr style="background: #ecf0f1;"><th style="padding: 0.5rem; text-align: left;">Location</th><th style="padding: 0.5rem; text-align: left;">Field/Workflow</th><th style="padding: 0.5rem; text-align: left;">Found</th><th style="padding: 0.5rem; text-align: left;">Suggestion</th></tr>';
+        typos.forEach(typo => {
+            report += `<tr style="border-bottom: 1px solid #ddd;"><td style="padding: 0.5rem;">${typo.location}</td><td style="padding: 0.5rem;">${typo.fieldLabel}</td><td style="padding: 0.5rem; color: #e74c3c;">${typo.found}</td><td style="padding: 0.5rem; color: #27ae60;">${typo.suggestion}</td></tr>`;
+        });
+        report += '</table>';
+    } else {
+        report += '<p style="color: #27ae60; font-weight: bold;">✅ No typos found</p>';
+    }
+    report += '</div>';
+    
+    // Unused Fields
+    report += '<div style="margin-bottom: 2rem; padding: 1.5rem; background: #fce4ec; border: 2px solid #e91e63; border-radius: 8px;">';
+    report += '<h2 style="color: #e91e63; margin-bottom: 1rem;">Unused/Problematic Fields</h2>';
+    if (unusedFields.length > 0) {
+        report += `<p style="color: #e74c3c; font-weight: bold;">⚠️ Found ${unusedFields.length} issue(s)</p>`;
+        report += '<table style="width: 100%; border-collapse: collapse; margin-top: 1rem;">';
+        report += '<tr style="background: #ecf0f1;"><th style="padding: 0.5rem; text-align: left;">Field</th><th style="padding: 0.5rem; text-align: left;">Reason</th><th style="padding: 0.5rem; text-align: left;">Severity</th><th style="padding: 0.5rem; text-align: left;">Message</th></tr>';
+        unusedFields.forEach(field => {
+            const severityColor = field.severity === 'HIGH' ? '#e74c3c' : '#f39c12';
+            report += `<tr style="border-bottom: 1px solid #ddd;"><td style="padding: 0.5rem;">${field.fieldLabel}</td><td style="padding: 0.5rem;">${field.reason}</td><td style="padding: 0.5rem; color: ${severityColor}; font-weight: bold;">${field.severity}</td><td style="padding: 0.5rem;">${field.message}</td></tr>`;
+        });
+        report += '</table>';
+    } else {
+        report += '<p style="color: #27ae60; font-weight: bold;">✅ No unused fields found</p>';
+    }
+    report += '</div>';
+    
+    report += '<div style="text-align: center; margin-top: 2rem;">';
+    report += '<button onclick="this.parentElement.parentElement.remove()" class="btn" style="padding: 0.75rem 2rem;">Close</button>';
+    report += '</div>';
+    report += '</div>';
+    
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; overflow-y: auto; padding: 2rem;';
+    modal.innerHTML = report;
+    document.body.appendChild(modal);
+    
+    // Close on background click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
 }
 
 // Export gap analysis results
@@ -2644,6 +3910,75 @@ function exportToExcel() {
 
     const subjectTypesSheet = XLSX.utils.aoa_to_sheet(subjectTypesData);
     XLSX.utils.book_append_sheet(workbook, subjectTypesSheet, 'Subject Types');
+
+    // Sheet 11: Workflow Rule Ordering Analysis
+    const orderingAnalysis = analyzeWorkflowRuleOrdering();
+    const orderingData = [];
+    orderingData.push(['Current Order', 'Workflow Name', 'Criteria Count', 'Specificity Score']);
+    orderingAnalysis.currentOrder.forEach(item => {
+        orderingData.push([item.index, item.name, item.criteriaCount, item.specificityScore]);
+    });
+    orderingData.push([]);
+    orderingData.push(['Suggested Order', 'Workflow Name', 'Suggested Position', 'Current Position', 'Criteria Count', 'Specificity Score']);
+    orderingAnalysis.suggestedOrder.forEach(item => {
+        orderingData.push([item.suggestedIndex, item.name, item.suggestedIndex, item.currentIndex, item.criteriaCount, item.specificityScore]);
+    });
+    if (orderingAnalysis.issues.length > 0) {
+        orderingData.push([]);
+        orderingData.push(['Issues Found']);
+        orderingData.push(['Severity', 'Current Rule', 'Current Position', 'Blocking Rule', 'Blocking Position', 'Message']);
+        orderingAnalysis.issues.forEach(issue => {
+            orderingData.push([
+                issue.severity,
+                issue.currentRule,
+                issue.currentIndex,
+                issue.blockingRule,
+                issue.blockingIndex,
+                issue.message
+            ]);
+        });
+    }
+    const orderingSheet = XLSX.utils.aoa_to_sheet(orderingData);
+    XLSX.utils.book_append_sheet(workbook, orderingSheet, 'Workflow Ordering');
+
+    // Sheet 12: Typo Detection
+    const typos = detectTypos();
+    const typosData = [];
+    typosData.push(['Location', 'Field/Workflow', 'Found Typo', 'Suggestion', 'Context']);
+    typos.forEach(typo => {
+        typosData.push([
+            typo.location,
+            typo.fieldLabel,
+            typo.found,
+            typo.suggestion,
+            typo.context
+        ]);
+    });
+    if (typos.length === 0) {
+        typosData.push(['No typos found']);
+    }
+    const typosSheet = XLSX.utils.aoa_to_sheet(typosData);
+    XLSX.utils.book_append_sheet(workbook, typosSheet, 'Typos');
+
+    // Sheet 13: Unused Fields
+    const unusedFields = detectUnusedFields();
+    const unusedData = [];
+    unusedData.push(['Field Key', 'Field Label', 'Reason', 'Severity', 'Message', 'Referenced Field']);
+    unusedFields.forEach(field => {
+        unusedData.push([
+            field.fieldKey,
+            field.fieldLabel,
+            field.reason,
+            field.severity,
+            field.message,
+            field.referencedField || ''
+        ]);
+    });
+    if (unusedFields.length === 0) {
+        unusedData.push(['No unused fields found']);
+    }
+    const unusedSheet = XLSX.utils.aoa_to_sheet(unusedData);
+    XLSX.utils.book_append_sheet(workbook, unusedSheet, 'Unused Fields');
 
     // Generate filename with template name and timestamp
     const templateName = webformData.webFormDto?.templateName || 'webform';
