@@ -50,10 +50,26 @@ This ensures all field labels match the source webform configuration.
 - Pure JavaScript (no framework dependencies)
 - SheetJS for Excel export
 - OneTrust DSAR webform JSON format
+- Vite for local development/preview
 
 ## Deployment
 
 Ready to deploy on Vercel - just push to a repository and connect to Vercel.
+
+## Local development
+
+1. Install dependencies: `npm install`
+2. Start a dev server: `npm run dev` (default: http://localhost:4173)
+3. Build for production: `npm run build`
+4. Preview the production build locally: `npm run preview`
+
+## Project context
+
+- App entrypoint + runtime assets live in the repo root (`index.html`, `simulator.js`, `state_hash_mapping.csv`, `assets/`).
+- Developer notes and architecture live in `context/` (start with `context/README.md`).
+- Guides and troubleshooting docs are grouped under `docs/`.
+- CLI/utilities are under `scripts/node/`; Python helper scripts live in `scripts/python/`.
+- Temp/dev logs from local runs are kept in `logs/`.
 
 ## License
 

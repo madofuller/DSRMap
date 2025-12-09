@@ -6,7 +6,8 @@
  */
 
 const fs = require('fs');
-const parser = require('./onetrust-webform-parser-agnostic.js');
+const path = require('path');
+const parser = require('../../onetrust-webform-parser-agnostic.js');
 
 // ============================================================================
 // EXAMPLE 1: Basic Parsing
@@ -15,8 +16,15 @@ const parser = require('./onetrust-webform-parser-agnostic.js');
 console.log('\n=== EXAMPLE 1: Basic Parsing ===\n');
 
 // Load webform JSON
+const webformPath = process.argv[2];
+
+if (!webformPath) {
+    console.error('Usage: node example-usage.js <path-to-webform.json>');
+    process.exit(1);
+}
+
 const jsonData = JSON.parse(
-    fs.readFileSync('c:/Users/madof/OneDrive/Desktop/DSAR/webform-template-6904500676217895167.json', 'utf8')
+    fs.readFileSync(path.resolve(webformPath), 'utf8')
 );
 
 // Parse the webform (this is the main function you'll use)

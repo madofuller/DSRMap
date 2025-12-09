@@ -3,12 +3,21 @@
  */
 
 const fs = require('fs');
+const path = require('path');
 
 // Load the webform
-const webformPath = 'webform-template-6904500676217895167.json';
-console.log(`Loading webform: ${webformPath}\n`);
+const webformPath = process.argv[2];
+const outputPath = process.argv[3] || 'extracted-hashes.json';
 
-const webformData = JSON.parse(fs.readFileSync(webformPath, 'utf8'));
+if (!webformPath) {
+    console.error('Usage: node extract-hashes.js <path-to-webform.json> [output.json]');
+    process.exit(1);
+}
+
+const resolvedPath = path.resolve(webformPath);
+console.log(`Loading webform: ${resolvedPath}\n`);
+
+const webformData = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
 
 // Function to recursively search for hashes
 function findHashes(obj, path = '', results = []) {
@@ -205,8 +214,8 @@ if (hashes.length === 0) {
             hash: h.hash
         }));
         
-        fs.writeFileSync('extracted-hashes.json', JSON.stringify(hashList, null, 2));
-        console.log(`\n💾 Saved ${sha512Hashes.length} hashes to extracted-hashes.json`);
+        fs.writeFileSync(outputPath, JSON.stringify(hashList, null, 2));
+        console.log(`\n💾 Saved ${sha512Hashes.length} hashes to ${outputPath}`);
     }
 } else {
     console.log(`✅ Found ${hashes.length} encrypted hashes:\n`);
@@ -217,8 +226,8 @@ if (hashes.length === 0) {
     });
     
     // Save to file
-    fs.writeFileSync('extracted-hashes.json', JSON.stringify(hashes, null, 2));
-    console.log(`\n💾 Saved ${hashes.length} hashes to extracted-hashes.json`);
+    fs.writeFileSync(outputPath, JSON.stringify(hashes, null, 2));
+    console.log(`\n💾 Saved ${hashes.length} hashes to ${outputPath}`);
 }
 
 
