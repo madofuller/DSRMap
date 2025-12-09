@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New DSR Build - Questionnaire</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            color: #2c3e50;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: #000000;
+            color: white;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 3rem;
+            justify-content: space-between;
+        }
+
+        .header-logo {
+            height: 40px;
+            display: flex;
+            align-items: center;
+        }
+
+        .header-logo img {
+            height: 100%;
+            max-width: 500px;
+            width: auto;
+        }
+
+        .header-content {
+            flex: 1;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: #FFD700;
+            font-weight: bold;
+        }
+
+        .header p {
+            color: #e0e0e0;
+            font-size: 0.95rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .back-btn {
+            background: #34495e;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 2rem;
+            transition: background 0.2s;
+        }
+
+        .back-btn:hover {
+            background: #2c3e50;
+        }
+
+        .form-section {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 3px solid #FFD700;
+            font-weight: 600;
+        }
+
+        .question-group {
+            margin-bottom: 2rem;
+        }
+
+        .question-label {
+            display: block;
+            font-weight: 600;
+            font-size: 1rem;
+            color: #2c3e50;
+            margin-bottom: 0.75rem;
+        }
+
+        .question-number {
+            color: #FFD700;
+            font-weight: 700;
+            margin-right: 0.5rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e0e6ed;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #FFD700;
+        }
+
+        .form-textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e0e6ed;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            min-height: 120px;
+            resize: vertical;
+            transition: border-color 0.2s;
+        }
+
+        .form-textarea:focus {
+            outline: none;
+            border-color: #FFD700;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e0e6ed;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: #FFD700;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .checkbox-item label {
+            cursor: pointer;
+        }
+
+        .submit-section {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+            margin-top: 2rem;
+        }
+
+        .submit-btn {
+            background: #FFD700;
+            color: #000000;
+            border: none;
+            padding: 1rem 3rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .submit-btn:hover {
+            background: #E6C200;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: #e0e6ed;
+            z-index: 1000;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #FFD700;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-indicator">
+        <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+    </div>
+
+    <div class="header">
+        <div class="header-logo">
+            <img src="assets/FLLR+Logo-Horizontal-Full+Color+Knockout.webp" alt="FLLR Logo">
+        </div>
+        <div class="header-content">
+            <h1>New DSR Build</h1>
+            <p>OneTrust DSR Intake & Requirements Questionnaire</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <button class="back-btn" onclick="window.location.href='index.html'">← Back to Landing Page</button>
+
+        <form id="dsrQuestionnaire" onsubmit="handleSubmit(event)">
+            <!-- SECTION 1: Business & Jurisdiction Scope -->
+            <div class="form-section">
+                <h2 class="section-title">SECTION 1: Business & Jurisdiction Scope</h2>
+                
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">1.</span>
+                        In which regions/countries does your organization currently do business?
+                    </label>
+                    <textarea class="form-textarea" name="q1" placeholder="List all regions/countries..."></textarea>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">2.</span>
+                        Which privacy laws apply to your users?
+                    </label>
+                    <textarea class="form-textarea" name="q2" placeholder="e.g., GDPR, CCPA, LGPD, etc."></textarea>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">3.</span>
+                        Should rights be shown globally or only when legally required?
+                    </label>
+                    <select class="form-select" name="q3">
+                        <option value="">Select an option...</option>
+                        <option value="globally">Globally</option>
+                        <option value="legally-required">Only when legally required</option>
+                    </select>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">4.</span>
+                        Should location be auto-detected or user-selected?
+                    </label>
+                    <select class="form-select" name="q4">
+                        <option value="">Select an option...</option>
+                        <option value="auto-detected">Auto-detected</option>
+                        <option value="user-selected">User-selected</option>
+                        <option value="both">Both options available</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- SECTION 2: User Types & Eligibility -->
+            <div class="form-section">
+                <h2 class="section-title">SECTION 2: User Types & Eligibility</h2>
+                
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">5.</span>
+                        Which user types can submit requests?
+                    </label>
+                    <textarea class="form-textarea" name="q5" placeholder="e.g., Customers, Employees, Website Visitors, etc."></textarea>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">6.</span>
+                        Do different user types receive different rights/workflows?
+                    </label>
+                    <select class="form-select" name="q6">
+                        <option value="">Select an option...</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- SECTION 3: Request Types (DSR Rights) -->
+            <div class="form-section">
+                <h2 class="section-title">SECTION 3: Request Types (DSR Rights)</h2>
+                
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">7.</span>
+                        Which rights should be available (Access, Delete, Correct, etc.)?
+                    </label>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" name="q7" value="access" id="q7-access">
+                            <label for="q7-access">Access</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" name="q7" value="delete" id="q7-delete">
+                            <label for="q7-delete">Delete</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" name="q7" value="correct" id="q7-correct">
+                            <label for="q7-correct">Correct</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" name="q7" value="portability" id="q7-portability">
+                            <label for="q7-portability">Data Portability</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" name="q7" value="object" id="q7-object">
+                            <label for="q7-object">Object to Processing</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" name="q7" value="restrict" id="q7-restrict">
+                            <label for="q7-restrict">Restrict Processing</label>
+                        </div>
+                    </div>
+                    <textarea class="form-textarea" name="q7-other" placeholder="Other rights (specify)" style="margin-top: 1rem;"></textarea>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">8.</span>
+                        Should rights vary by region or user type?
+                    </label>
+                    <select class="form-select" name="q8">
+                        <option value="">Select an option...</option>
+                        <option value="yes-region">Yes, by region</option>
+                        <option value="yes-user-type">Yes, by user type</option>
+                        <option value="yes-both">Yes, by both</option>
+                        <option value="no">No</option>
+                    </select>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">9.</span>
+                        Should any request types require warning/acknowledgement text?
+                    </label>
+                    <textarea class="form-textarea" name="q9" placeholder="Specify which request types and what warning text..."></textarea>
+                </div>
+            </div>
+
+            <!-- SECTION 4: Identity Verification (IDV) -->
+            <div class="form-section">
+                <h2 class="section-title">SECTION 4: Identity Verification (IDV)</h2>
+                
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">10.</span>
+                        What data points are required to locate a user?
+                    </label>
+                    <textarea class="form-textarea" name="q10" placeholder="e.g., Email, Phone, Account ID, etc."></textarea>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">11.</span>
+                        Which fields are mandatory?
+                    </label>
+                    <textarea class="form-textarea" name="q11" placeholder="List mandatory fields..."></textarea>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">12.</span>
+                        Do user types require different verification data?
+                    </label>
+                    <select class="form-select" name="q12">
+                        <option value="">Select an option...</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                    </select>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">13.</span>
+                        Should OneTrust Email/SMS verification be used?
+                    </label>
+                    <select class="form-select" name="q13">
+                        <option value="">Select an option...</option>
+                        <option value="email">Email only</option>
+                        <option value="sms">SMS only</option>
+                        <option value="both">Both</option>
+                        <option value="no">No</option>
+                    </select>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">14.</span>
+                        Do high-risk requests need manual review/document upload?
+                    </label>
+                    <select class="form-select" name="q14">
+                        <option value="">Select an option...</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- SECTION 5: Authorized Agents -->
+            <div class="form-section">
+                <h2 class="section-title">SECTION 5: Authorized Agents</h2>
+                
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">15.</span>
+                        Are authorized agents allowed?
+                    </label>
+                    <select class="form-select" name="q15">
+                        <option value="">Select an option...</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                    </select>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">16.</span>
+                        What documentation is required?
+                    </label>
+                    <textarea class="form-textarea" name="q16" placeholder="List required documentation..."></textarea>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">17.</span>
+                        Should file upload be required?
+                    </label>
+                    <select class="form-select" name="q17">
+                        <option value="">Select an option...</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                    </select>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">18.</span>
+                        Should agent requests route differently?
+                    </label>
+                    <select class="form-select" name="q18">
+                        <option value="">Select an option...</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- SECTION 6: Sensitive Data Handling -->
+            <div class="form-section">
+                <h2 class="section-title">SECTION 6: Sensitive Data Handling</h2>
+                
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">19.</span>
+                        Does your organization store sensitive personal data?
+                    </label>
+                    <select class="form-select" name="q19">
+                        <option value="">Select an option...</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                    </select>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">20.</span>
+                        Should special workflows exist for sensitive data?
+                    </label>
+                    <select class="form-select" name="q20">
+                        <option value="">Select an option...</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                    </select>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">21.</span>
+                        Do you want a "Limit Use of Sensitive Data" request type?
+                    </label>
+                    <select class="form-select" name="q21">
+                        <option value="">Select an option...</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- SECTION 7: Backend Processing Workflow -->
+            <div class="form-section">
+                <h2 class="section-title">SECTION 7: Backend Processing Workflow</h2>
+                
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">22.</span>
+                        Provide your workflows for each request type.
+                    </label>
+                    <textarea class="form-textarea" name="q22" placeholder="Describe workflows for each request type..."></textarea>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">23.</span>
+                        Which teams fulfill requests?
+                    </label>
+                    <textarea class="form-textarea" name="q23" placeholder="List teams and their responsibilities..."></textarea>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">24.</span>
+                        Do different request types need different approval paths?
+                    </label>
+                    <select class="form-select" name="q24">
+                        <option value="">Select an option...</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                    </select>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">25.</span>
+                        SLA requirements?
+                    </label>
+                    <textarea class="form-textarea" name="q25" placeholder="Specify SLA requirements for each request type..."></textarea>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">26.</span>
+                        Should escalations be configured?
+                    </label>
+                    <select class="form-select" name="q26">
+                        <option value="">Select an option...</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- SECTION 8: Data Source Integrations -->
+            <div class="form-section">
+                <h2 class="section-title">SECTION 8: Data Source Integrations</h2>
+                
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">27.</span>
+                        List all systems containing relevant user data.
+                    </label>
+                    <textarea class="form-textarea" name="q27" placeholder="List all systems, databases, applications..."></textarea>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">28.</span>
+                        Do you require integrations with CRMs, Marketing tools, IDPs, etc.?
+                    </label>
+                    <textarea class="form-textarea" name="q28" placeholder="List required integrations..."></textarea>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">29.</span>
+                        Should Access Reports be automatically generated?
+                    </label>
+                    <select class="form-select" name="q29">
+                        <option value="">Select an option...</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- SECTION 9: Notifications & Communication -->
+            <div class="form-section">
+                <h2 class="section-title">SECTION 9: Notifications & Communication</h2>
+                
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">30.</span>
+                        Which automated emails should be used?
+                    </label>
+                    <textarea class="form-textarea" name="q30" placeholder="List email types (confirmation, completion, denial, etc.)..."></textarea>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">31.</span>
+                        Do you require branded templates?
+                    </label>
+                    <select class="form-select" name="q31">
+                        <option value="">Select an option...</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                    </select>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">32.</span>
+                        Do you need multilingual support?
+                    </label>
+                    <select class="form-select" name="q32">
+                        <option value="">Select an option...</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- SECTION 10: Form Design, UI & Logic -->
+            <div class="form-section">
+                <h2 class="section-title">SECTION 10: Form Design, UI & Logic</h2>
+                
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">33.</span>
+                        Branding requirements?
+                    </label>
+                    <textarea class="form-textarea" name="q33" placeholder="Describe branding requirements (colors, logos, fonts, etc.)..."></textarea>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">34.</span>
+                        Should dynamic logic be used (conditional questions)?
+                    </label>
+                    <select class="form-select" name="q34">
+                        <option value="">Select an option...</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                    </select>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">35.</span>
+                        Should captcha/bot protections be enabled?
+                    </label>
+                    <select class="form-select" name="q35">
+                        <option value="">Select an option...</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                    </select>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">36.</span>
+                        Accessibility requirements?
+                    </label>
+                    <textarea class="form-textarea" name="q36" placeholder="Specify accessibility requirements (WCAG level, screen reader support, etc.)..."></textarea>
+                </div>
+            </div>
+
+            <!-- SECTION 11: Exceptions & Denials -->
+            <div class="form-section">
+                <h2 class="section-title">SECTION 11: Exceptions & Denials</h2>
+                
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">37.</span>
+                        Under what conditions do you deny a request?
+                    </label>
+                    <textarea class="form-textarea" name="q37" placeholder="List conditions for denial..."></textarea>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">38.</span>
+                        Should denials trigger an appeals process?
+                    </label>
+                    <select class="form-select" name="q38">
+                        <option value="">Select an option...</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                    </select>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">39.</span>
+                        Do you need a separate appeal form?
+                    </label>
+                    <select class="form-select" name="q39">
+                        <option value="">Select an option...</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- SECTION 12: Compliance, Reporting & Auditing -->
+            <div class="form-section">
+                <h2 class="section-title">SECTION 12: Compliance, Reporting & Auditing</h2>
+                
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">40.</span>
+                        Required reporting dashboards?
+                    </label>
+                    <textarea class="form-textarea" name="q40" placeholder="List required dashboards and metrics..."></textarea>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">41.</span>
+                        How long should DSR cases be retained?
+                    </label>
+                    <input type="text" class="form-input" name="q41" placeholder="e.g., 7 years, indefinitely, etc.">
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">42.</span>
+                        Do you need audit exports?
+                    </label>
+                    <select class="form-select" name="q42">
+                        <option value="">Select an option...</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- SECTION 13: Additional Information -->
+            <div class="form-section">
+                <h2 class="section-title">SECTION 13: Additional Information</h2>
+                
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">43.</span>
+                        Custom legal disclaimers?
+                    </label>
+                    <textarea class="form-textarea" name="q43" placeholder="Paste custom legal disclaimers..."></textarea>
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">44.</span>
+                        Link to current privacy policy?
+                    </label>
+                    <input type="url" class="form-input" name="q44" placeholder="https://...">
+                </div>
+
+                <div class="question-group">
+                    <label class="question-label">
+                        <span class="question-number">45.</span>
+                        Any additional requirements?
+                    </label>
+                    <textarea class="form-textarea" name="q45" placeholder="Any other requirements or notes..."></textarea>
+                </div>
+            </div>
+
+            <div class="submit-section">
+                <button type="submit" class="submit-btn">Submit Questionnaire</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // Update progress bar as user scrolls
+        function updateProgress() {
+            const windowHeight = window.innerHeight;
+            const documentHeight = document.documentElement.scrollHeight;
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const scrollPercent = (scrollTop / (documentHeight - windowHeight)) * 100;
+            document.getElementById('progressBar').style.width = Math.min(scrollPercent, 100) + '%';
+        }
+
+        window.addEventListener('scroll', updateProgress);
+        updateProgress();
+
+        // Handle form submission
+        function handleSubmit(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const data = {};
+            
+            // Collect all form data
+            for (let [key, value] of formData.entries()) {
+                if (data[key]) {
+                    // Handle multiple values (checkboxes)
+                    if (Array.isArray(data[key])) {
+                        data[key].push(value);
+                    } else {
+                        data[key] = [data[key], value];
+                    }
+                } else {
+                    data[key] = value;
+                }
+            }
+            
+            // Handle checkboxes separately
+            const checkboxes = event.target.querySelectorAll('input[type="checkbox"]:checked');
+            checkboxes.forEach(cb => {
+                const name = cb.name;
+                if (!data[name]) {
+                    data[name] = [];
+                }
+                if (!Array.isArray(data[name])) {
+                    data[name] = [data[name]];
+                }
+                if (!data[name].includes(cb.value)) {
+                    data[name].push(cb.value);
+                }
+            });
+            
+            console.log('Form Data:', data);
+            
+            // TODO: Send data to backend or save locally
+            alert('Questionnaire submitted! (Data logged to console for now)');
+            
+            // Optionally redirect or show success message
+            // window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>
+
