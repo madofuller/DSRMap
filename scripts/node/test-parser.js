@@ -3,16 +3,26 @@
  */
 
 const fs = require('fs');
-const parser = require('./onetrust-webform-parser-agnostic.js');
+const path = require('path');
+const parser = require('../../onetrust-webform-parser-agnostic.js');
 
 console.log('='.repeat(80));
 console.log('TESTING AGNOSTIC ONETRUST WEBFORM PARSER');
 console.log('='.repeat(80));
 
+// CLI args: node test-parser.js <path-old-webform.json> <path-new-webform.json>
+const oldWebformPath = process.argv[2];
+const newWebformPath = process.argv[3];
+
+if (!oldWebformPath || !newWebformPath) {
+    console.error('Usage: node test-parser.js <path-old-webform.json> <path-new-webform.json>');
+    process.exit(1);
+}
+
 // Test webform 1 (old)
-console.log('\n📄 Testing OLD webform (7887549529695541088)...\n');
+console.log('\n📄 Testing OLD webform...\n');
 const webform1 = JSON.parse(
-    fs.readFileSync('c:/Users/madof/OneDrive/Desktop/DSAR/webform-template-7887549529695541088.json', 'utf8')
+    fs.readFileSync(path.resolve(oldWebformPath), 'utf8')
 );
 const parsed1 = parser.parseWebForm(webform1);
 
@@ -61,9 +71,9 @@ if (parsed1.fieldVisibilityRules.fieldCount > 0) {
 
 // Test webform 2 (new)
 console.log('\n' + '='.repeat(80));
-console.log('\n📄 Testing NEW webform (6904500676217895167)...\n');
+console.log('\n📄 Testing NEW webform...\n');
 const webform2 = JSON.parse(
-    fs.readFileSync('c:/Users/madof/OneDrive/Desktop/DSAR/webform-template-6904500676217895167.json', 'utf8')
+    fs.readFileSync(path.resolve(newWebformPath), 'utf8')
 );
 const parsed2 = parser.parseWebForm(webform2);
 
