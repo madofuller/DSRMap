@@ -1,3 +1,5 @@
 {
-  "rewrites": []
+  "buildCommand": "",
+  "outputDirectory": ".",
+  "framework": null
 }
